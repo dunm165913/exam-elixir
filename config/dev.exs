@@ -2,8 +2,8 @@ use Mix.Config
 
 # Configure your database
 config :exam, Exam.Repo,
-  username: "pancake",
-  password: "pancake",
+  username: "test",
+  password: "",
   database: "exam_dev",
   hostname: "localhost",
   show_sensitive_data_on_connection_error: true,

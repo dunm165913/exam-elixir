@@ -1,0 +1,12 @@
+{
+  "type": "service_account",
+  "project_id": "cosmic-anthem-242716",
+  "private_key_id": "45cf2f27deea9b49e9c281020b1fe8823e313e78",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQC+HLUlpQNYj2Qm\nQ2fwZRO9HXcs3ymwEorsWCVHcERKIMEbyUsOvcZWqENTk6drPNZmZF+Wij9FQmGO\nZk62bWnRtXm6NERsrIVGTCb9CywOlaJrzuJmv69+EThc9ZtK9/GV1SnC8G7IxJiy\nhD4y8g+ZEvPtPg6nuHIPQyfmQ8eddNytfyXM1oiEV6tMePDIDBotiOuSYQSU5fO1\nkdcDOngmMGZxe34K0NugCSSpXNSDi5WtvC69D896MiXn0KKVNYojG1SzKEpA2qyB\nsbYcx64+yuUaVPUVu84t0lkLm5NV82S5kBztD7aiJaypz0FLbu5YHDoBMXNT84Eo\nffSQG64BAgMBAAECggEAHY1h3Vmy1PPpSgdlY1mbAWVQrsF7/fpL7SRgmyPJAcro\nqdSXHdIDQFpEqPvFZSaeX2lP8JtJ7Y69koC10KbecbJnmznfvxLsXrqcvu4bKaM6\nDc8po3Y9pfewTscBHly/iZ6KsNpmJkBlSi7DanD1WsK291STu5+w3019qM41e/S3\nW07aM6fw0Scg+rxBTH4cBvK7lrhkz3f2ogaAydYXmAzHFCC8l9QacFXzpJ7Z9SR5\nJS8BJTqisveQaVBfXWcJvKUfLu/VmkJqiafeCMf4g1MNBy1ElC9RQ4/t0Zihq93X\nNCKrthLu73N2z4nEQrxhEtPiXwVueduMvcEJTAGCBwKBgQDpx5yxYB27ShPTLiZ2\nz2jH1TDjra+Ru+2Ni4rC7+9DPTMuNXlEoEEtaf4M3Z50fNGZSuaIxX4G5M+38dE6\nA+V4LDSRZD99W9v2eSeOtD0ShuCavKlYh/mdSjBTvsg+qm931k3iR3oXJN3GUIEC\nUdTO4i2qABNUrEDPWEjTXDjnkwKBgQDQLpCCaJ9PJC2aFCoLFYNoVNT1OUoxh1Hh\nW8q5QFCpUNzGbaSNDlIojWgOv2fRHmZMtNnv4+Yq/383uTD7sKafeQ9Mz86qVwqt\nb/9ZnK8DN3exs9eeRrjRt30/ZbeE2sUR8NgQSThE5yBD2mpobMoCu7QB4MgkOfWy\nuQ6RdvWomwKBgQDoJzLCrhk4WPrQ9v55c8Sw1VQkdOFpzn671jvpE429bvP5Sl7v\nuFihOaVwr0/gi+c03D2Myto5DFX+a+QDQcVJjlRxoWSvH16TJ4MR4ojXchtvbjSZ\nVwaZnQfa0hVWrbfeAHH9aE+k1hZqDp3eaNb0z4TbUhHgPuJpRVmkkutrgwKBgQDD\nsrIn1P/FHsY7bC8lokCYR/600vka3BEtnuNQB9SLhbc0VQd1jfvPoTYrfuSx4Tjb\nbLreVkcdLnbBxDX2s9W+XcfzNfoZiJ9B8OGCtNaUWIUNKHlNkT/V7P4xJYZBvoG4\n3sXNcXcS1o4vGtgid/niXd7WUR7zZwS/0FSQi9pcdwKBgQCVUdfLOIRMfO5Ok1Jo\n4rxpZTsEDgHaeJuJHYhfPISaNDl0IU8KT9cbMpWEldqZ4ANccuH9VcX4HGBxXR+g\nhvZNykDckfoLf3sEo+5cCohinOnp52MTb08sX7KEO+RJUqWeyRMhtd0HpO/8WaRj\nDbPhezqPYCOR7mQWiXwT/Wyi2Q==\n-----END PRIVATE KEY-----\n",
+  "client_email": "upload@cosmic-anthem-242716.iam.gserviceaccount.com",
+  "client_id": "118130197791659687860",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/upload%40cosmic-anthem-242716.iam.gserviceaccount.com"
+}

@@ -6,11 +6,11 @@ defmodule Exam.Plugs.Auth do
   end
 
   def call(conn, correct_auth) do
-    IO.inspect(conn.query_params["access_token"])
+    # IO.inspect(conn.query_params["access_token"])
     case conn.query_params["access_token"] do
       nil ->
         conn
-        |> send_resp(200, Jason.encode!(%{data: %{}, status: "No acctes_token"}))
+        |> send_resp(200, Jason.encode!(%{data: %{}, status: "No acctes_token", success: false}))
         |> halt()
 
       _ ->
@@ -24,22 +24,26 @@ defmodule Exam.Plugs.Auth do
         #   |> halt()
         # end
         try do
-          d = JsonWebToken.verify(conn.query_params["access_token"],%{
-            key: "gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr9C"
-          })
+          d =
+            JsonWebToken.verify(conn.query_params["access_token"], %{
+              key: "gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr9C"
+            })
+
           case d do
-            {:ok, data} -> assign(conn, :user, data)
-            {:error, _} -> conn
-              |> send_resp(200, Jason.encode!(%{data: %{}, status: "Auth fail"}))
+            {:ok, data} ->
+              assign(conn, :user, data)
+
+            {:error, _} ->
+              conn
+              |> send_resp(200, Jason.encode!(%{data: %{}, status: "Auth fail", success: false}))
               |> halt()
-              
           end
-        rescue 
-          RuntimeError -> conn
-          |> send_resp(200, Jason.encode!(%{data: %{}, status: "Auth fail"}))
-          |> halt()
+        rescue
+          RuntimeError ->
+            conn
+            |> send_resp(200, Jason.encode!(%{data: %{}, status: "Auth fail", success: false}))
+            |> halt()
         end
-          
     end
   end
 end

@@ -3,6 +3,7 @@ defmodule ExamWeb.UserSocket do
 
   ## Channels
   channel "exam:*", ExamWeb.ExamChannel
+  channel "question:*", ExamWeb.QuestionChannel
   # chanel "exam", ExamWeb.ExamChanel
 
   # def handle_exam(:after_join, socket) do
@@ -24,6 +25,7 @@ defmodule ExamWeb.UserSocket do
   # See `Phoenix.Token` documentation for examples in
   # performing token verification on connect.
   def connect(_params, socket, _connect_info) do
+    # IO.inspect(socket)
     {:ok, socket}
   end
 

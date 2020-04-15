@@ -33,3 +33,14 @@ import_config "#{Mix.env()}.exs"
 #        mailgun_domain: "https://api.mailgun.net/v3/sandbox56f8d7aba4b54b8c97644bb80e0568bb.mailgun.org",
 #        mailgun_key: "b8d8f538567771e5195c52aba2a1116e-816b23ef-57fb10fd"
 
+
+# cloudinary
+# config :ex_cloudinary,
+#       cloud_name: "dunguyen",
+#       api_key: "384762415366912",
+#       api_secret: "BqcHoIOoc0f9SrNfbauhN3hIj4k"
+
+config :cloudex,
+  api_key: "384762415366912",
+  secret: "BqcHoIOoc0f9SrNfbauhN3hIj4k",
+  cloud_name: "dunguyen"

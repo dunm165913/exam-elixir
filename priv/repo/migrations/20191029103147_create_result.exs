@@ -5,7 +5,9 @@ defmodule Exam.Repo.Migrations.CreateResult do
     create table(:results) do
       add :user_id, references(:users)
       add :result, :map
-      add :exam_id, references(:exams)
+      add :setting, :map
+      add :source, :string
+      add :id_ref, :string
 
       timestamps()
     end

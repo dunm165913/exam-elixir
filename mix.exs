@@ -24,6 +24,8 @@ defmodule Exam.MixProject do
     ]
   end
 
+  def application do [applications: [:logger, :cloudex]] end
+
   # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
@@ -47,8 +49,9 @@ defmodule Exam.MixProject do
       {:bcrypt_elixir, "~> 2.0"},
       {:mailgun, "~> 0.1.2"},
       {:poison, "~> 2.1", override: true},
-      {:cors_plug, "~> 1.5"},
-      {:httpoison, "~> 1.6"}
+      {:cors_plug, "~> 2.0"},
+      {:httpoison, "~> 1.6", override: true},
+      {:cloudex, "~> 1.3.0"},
     ]
   end
 
