@@ -1,6 +1,6 @@
 defmodule Exam.Question do
-#   use Ecto.Schema
-#   import Ecto.Changeset
+  #   use Ecto.Schema
+  #   import Ecto.Changeset
   alias Exam.User
   use ExamWeb, :model
 
@@ -10,11 +10,13 @@ defmodule Exam.Question do
     field :question, :string
     field :parent_question, :string, default: "1"
     field :type, :string, default: "XO"
-    field :subject, :string
-    field :url_media, :string
+    field :subject, :string, default: ""
+    field :url_media, :string, default: ""
     field :level, :string, default: "1"
     field :class, :string, default: "12"
-    field :detail, :string
+    field :detail, :string, default: ""
+    field :status, :string, default: "review"
+    field :mark, :float, default: "0.0"
     # field :user_id, :integer
     belongs_to :user, User
 
@@ -24,7 +26,33 @@ defmodule Exam.Question do
   @doc false
   def changeset(user, attrs) do
     user
-    |> cast(attrs, [:as, :correct_ans, :question, :creator_id])
-    |> validate_required([:as, :correct_ans, :question, :creator_id])
+    |> cast(attrs, [
+      :as,
+      :correct_ans,
+      :question,
+      :parent_question,
+      :type,
+      :subject,
+      :url_media,
+      :level,
+      :class,
+      :detail,
+      :status,
+      :mark
+    ])
+    |> validate_required([
+      :as,
+      :correct_ans,
+      :question,
+      :parent_question,
+      :type,
+      :subject,
+      :url_media,
+      :level,
+      :class,
+      :detail,
+      :status,
+      :mark
+    ])
   end
 end

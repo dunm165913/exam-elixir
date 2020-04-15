@@ -3,6 +3,7 @@ defmodule Exam.User do
   # import Ecto.Changeset
   alias Exam.Question
   alias Exam.Result
+  alias Exam.Media
 
   use ExamWeb, :model
 
@@ -14,6 +15,7 @@ defmodule Exam.User do
     field :role, :string, default: "student"
     has_many :questions, Question
     has_many :results, Result
+    has_many :media, Media
 
     timestamps()
   end

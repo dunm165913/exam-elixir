@@ -18,6 +18,9 @@ erl_crash.dump
 
 # Also ignore archive artifacts (built via "mix archive.build").
 *.ez
+*.beam
+/compile
+/.elixir_ls
 
 # Ignore package tarball (built via "mix hex.build").
 exam-*.tar

@@ -11,9 +11,11 @@ defmodule Exam.Application do
       # Start the Ecto repository
       Exam.Repo,
       # Start the endpoint when the application starts
-      ExamWeb.Endpoint
+      ExamWeb.Endpoint,
       # Starts a worker by calling: Exam.Worker.start_link(arg)
       # {Exam.Worker, arg},
+      {ExamWeb.Cache, []},
+      {ExamWeb.Process, []}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

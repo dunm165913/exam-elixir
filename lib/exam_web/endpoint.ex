@@ -10,7 +10,9 @@ defmodule ExamWeb.Endpoint do
   # You should set gzip to true if you are running phx.digest
   # when deploying your static files in production.
 
-  plug CORSPlug, origin: ["http://localhost:8080"]
+  # plug CORSPlug, origin: ["http://localhost:3000"]
+  plug Plug.Head
+
   plug Plug.Static,
     at: "/",
     from: :exam,
@@ -29,7 +31,8 @@ defmodule ExamWeb.Endpoint do
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
   plug Plug.Parsers,
-    parsers: [:urlencoded, :multipart, :json],
+    parsers: [:urlencoded, {:multipart, length: 20_000_000}, :json],
+    query_string_length: 1_000_000,
     pass: ["*/*"],
     json_decoder: Phoenix.json_library()
 
@@ -45,5 +48,4 @@ defmodule ExamWeb.Endpoint do
     signing_salt: "1Es9nU1t"
 
   plug ExamWeb.Router
-
 end
