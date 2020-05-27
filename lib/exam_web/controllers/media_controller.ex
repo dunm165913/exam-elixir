@@ -14,8 +14,11 @@ defmodule ExamWeb.MediaController do
 
     result = Cloudex.upload(file.path)
 
+    IO.inspect(result)
+
     case result do
       {:ok, data} ->
+        IO.inspect(data)
         data = Map.take(data, [:public_id, :secure_url])
         user = Repo.get(User, conn.assigns.user.user_id)
 

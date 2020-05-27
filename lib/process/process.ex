@@ -6,60 +6,81 @@ defmodule ExamWeb.Process do
   end
 
   def init(init_arg) do
-    # Process.send_after(self, :start_T_10, 10000)
-    # Process.send_after(self, :process_result_T_10, 102_000)
+    send_after(self, :start_L_12, 10000)
+    send_after(self, :process_result_L_12, 102_000)
 
-    # Process.send_after(self, :start_T_11, 10000)
-    # Process.send_after(self, :process_result_T_11, 102_000)
+    send_after(self, :start_H_12, 10000)
+    send_after(self, :process_result_H_12, 102_000)
     {:ok, init_arg}
   end
 
   # t_10
 
-  def handle_info(:start_T_10, state) do
-    start_T_10
-    Process.send_after(self, :start_T_10, 100_000)
+  def handle_info(:start_L_12, state) do
+    start_L_12
+    send_after(self, :start_L_12, 100_000)
     {:noreply, state}
   end
 
-  def handle_info(:process_result_T_10, state) do
-    process_result_T_10
-    Process.send_after(self, :process_result_T_10, 100_000)
+  def handle_info(:process_result_L_12, state) do
+    process_result_L_12
+    send_after(self, :process_result_L_12, 100_000)
     {:noreply, state}
   end
 
-  def start_T_10() do
+  def start_L_12() do
     # IO.inspect(">>>>>>>>>>>>>>>>>>>>>>")
-    ExamWeb.Cache.set("live_question_T_10_result", [], 180)
-    ExamWeb.QuestionController.live_question("T", "10")
+    ExamWeb.Cache.set("live_question_L_12_result", [], 180)
+    ExamWeb.QuestionController.live_question("L", "12")
   end
 
-  def process_result_T_10() do
+  def process_result_L_12() do
     # IO.inspect(">>>>>>>>>>>>>>>>>>>>>>")
-    ExamWeb.Endpoint.broadcast!("question:live_T_10", "process_result_T_10", %{})
+    ExamWeb.Endpoint.broadcast!("question:live_L_12", "process_result_L_12", %{})
   end
 
   # t_11
-  def handle_info(:start_T_11, state) do
-    start_T_11
-    Process.send_after(self, :start_T_11, 100_000)
+  def handle_info(:start_H_12, state) do
+    start_H_12
+    send_after(self, :start_H_12, 100_000)
     {:noreply, state}
   end
 
-  def handle_info(:process_result_T_11, state) do
-    process_result_T_11
-    Process.send_after(self, :process_result_T_11, 100_000)
+  def handle_info(:process_result_H_12, state) do
+    process_result_H_12
+    send_after(self, :process_result_H_12, 100_000)
     {:noreply, state}
   end
 
-  def start_T_11() do
+  def start_H_12() do
     # IO.inspect(">>>>>>>>>>>>>>>>>>>>>>")
-    ExamWeb.Cache.set("live_question_T_11_result", [], 180)
-    ExamWeb.QuestionController.live_question("T", "11")
+    ExamWeb.Cache.set("live_question_H_12_result", [], 180)
+    ExamWeb.QuestionController.live_question("H", "12")
   end
 
-  def process_result_T_11() do
+  def process_result_H_12() do
     # IO.inspect(">>>>>>>>>>>>>>>>>>>>>>")
-    ExamWeb.Endpoint.broadcast!("question:live_T_11", "process_result_T_11", %{})
+    ExamWeb.Endpoint.broadcast!("question:live_H_12", "process_result_H_12", %{})
+  end
+
+  def send_after(pid, message, time) do
+    Process.send_after(pid, message, trunc(time))
+  end
+
+  def handle_cast({:auto_check, p}, state) do
+    {nubm, _} = Integer.parse("#{p["num"]}")
+    time = nubm * 1.5 * 1000 * 90
+    IO.inspect(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    IO.inspect(time)
+    send_after(self, {:auto_check, p}, trunc(time))
+    {:noreply, state}
+  end
+
+  def handle_info({:auto_check, p}, state) do
+    IO.inspect(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    IO.inspect(p)
+    id_ref = p["id_ref"]
+    ExamWeb.ResultController.auto_check(id_ref)
+    {:noreply, state}
   end
 end

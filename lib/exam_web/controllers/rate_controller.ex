@@ -6,6 +6,7 @@ defmodule ExamWeb.RateController do
   alias Exam.{User, Result, RateExam}
 
   # get rate of user
+  @spec index(Plug.Conn.t(), nil | keyword | map) :: Plug.Conn.t()
   def index(conn, params) do
     id_exam = params["id_exam"]
     id_user = conn.assigns.user.user_id

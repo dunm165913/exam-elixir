@@ -15,6 +15,7 @@ defmodule Exam.Exam do
     field :list_user_do, {:array, :integer}
     field :question, {:array, :integer}
     field :detail, :string
+    field :setting, :map
     belongs_to :user, User
     has_many :question_data, :Question
 
@@ -33,7 +34,8 @@ defmodule Exam.Exam do
       :publish,
       :question,
       :list_user_do,
-      :user_id
+      :user_id,
+      :setting
     ])
     |> validate_required([
       :subject,
@@ -44,7 +46,8 @@ defmodule Exam.Exam do
       :publish,
       :question,
       :list_user_do,
-      :user_id
+      :user_id,
+      :setting
     ])
   end
 end

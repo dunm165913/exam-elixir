@@ -41,7 +41,8 @@ defmodule ExamWeb.UserController do
                 %{
                   user_id: data.id,
                   email: data.email,
-                  role: data.role
+                  role: data.role,
+                  name: data.name
                 },
                 %{key: "gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr9C"}
               )
@@ -103,33 +104,29 @@ defmodule ExamWeb.UserController do
 
             case result do
               {:error, changeset} ->
-                json(conn, %{data: %{}, status: "Check your information", success: false})
+                json(conn, %{data: %{}, message: "Check your information", success: false})
 
               {:ok, _ABC} ->
-                json(conn, %{data: %{}, status: "ok", success: true})
+                json(conn, %{data: %{}, message: "ok", success: true})
             end
 
           _ ->
-            json(conn, %{data: %{}, status: "Email has been used", success: false})
+            json(conn, %{data: %{}, message: "Email has been used", success: false})
         end
     end
   end
 
-  defp find_user(email) do
+  defp find_user(emails) do
     user =
       from(u in User,
-        where: u.email == ^email,
+        where: u.email in ^emails,
         select: %{
           id: u.id,
           email: u.email,
           role: u.role
         }
       )
-      |> Repo.one()
-
-    case user do
-      nil -> %{data: %{}, status: "Not find user with email", success: false}
-      _ -> %{data: user, status: "ok", success: true}
-    end
+      |> Repo.all()
+   %{data: user, status: "ok", success: true}
   end
 end

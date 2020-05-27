@@ -16,7 +16,7 @@ defmodule Exam.Question do
     field :class, :string, default: "12"
     field :detail, :string, default: ""
     field :status, :string, default: "review"
-    field :mark, :float, default: "0.0"
+    field :mark, :float, default: 0.0
     # field :user_id, :integer
     belongs_to :user, User
 
@@ -24,8 +24,8 @@ defmodule Exam.Question do
   end
 
   @doc false
-  def changeset(user, attrs) do
-    user
+  def changeset(questions, attrs) do
+    questions
     |> cast(attrs, [
       :as,
       :correct_ans,
@@ -33,12 +33,13 @@ defmodule Exam.Question do
       :parent_question,
       :type,
       :subject,
-      :url_media,
+      # :url_media,
       :level,
       :class,
-      :detail,
-      :status,
-      :mark
+      :user_id,
+      # :detail,
+      # :status,
+      # :mark
     ])
     |> validate_required([
       :as,
@@ -47,12 +48,13 @@ defmodule Exam.Question do
       :parent_question,
       :type,
       :subject,
-      :url_media,
+      # :url_media,
       :level,
       :class,
-      :detail,
+      :user_id,
+      # :detail,
       :status,
-      :mark
+      # :mark
     ])
   end
 end

@@ -24,18 +24,22 @@ defmodule ExamWeb.ExamController do
         json(conn, %{data: %{}, status: "No id exam", success: false})
 
       _ ->
-        re = ExamWeb.ResultController.create_default(id_exam, id_user, "exam")
+        data = get_exam(id_exam, false, id_user)
 
-        if re.success do
-          data =
-            get_exam(id_exam, false, id_user)
-            |> Map.put("result", re.data)
+        if data.success do
+          re = ExamWeb.ResultController.create_default(id_exam, id_user, "exam")
 
-          # IO.inspect(data)
+          if re.success do
+            data =
+              data
+              |> Map.put("result", re.data)
 
-          json(conn, %{data: data, success: true})
+            json(conn, %{data: data, success: true})
+          else
+            json(conn, %{data: %{}, message: "error create default", success: false})
+          end
         else
-          json(conn, %{data: %{}, status: "Error when create default", success: false})
+          json(conn, %{data: %{}, message: "can do exam", success: false})
         end
     end
   end
@@ -44,17 +48,12 @@ defmodule ExamWeb.ExamController do
     json(conn, %{})
   end
 
-  def check_result(conn, parmas) do
-    client_ans = parmas["ans"]
-    id_exam = parmas["id_exam"]
-    id_user = conn.assigns.user.user_id
-    id_ref = parmas["id_ref"]
-    source = parmas["source"] || "exam"
+  def check_result_data(client_ans, id_exam, id_user, id_ref, source) do
     data = get_exam(id_exam, true, id_user)
 
     case Map.has_key?(data, :error) do
       true ->
-        json(conn, %{data: %{}, status: "Exam isn't existed", success: false})
+        %{data: %{}, status: "Exam isn't existed", success: false}
 
       false ->
         result =
@@ -84,21 +83,64 @@ defmodule ExamWeb.ExamController do
         # save result
 
         current_result = Repo.get!(Result, id_ref)
+        setting = current_result.setting
+
+        has_protect_mark =
+          if Map.has_key?(setting, "protect_mark") do
+            setting["protect_mark"]
+          else
+            false
+          end
 
         changeset =
           Result.changeset(current_result, %{
             "result" => result,
-            "id_ref" => id_exam,
+            "id_ref" => "#{id_exam}",
             "user_id" => id_user,
-            "setting" => %{},
             "source" => source,
             "status" => "done"
           })
 
+        # save to mark_subject if no protect mark
+        if !has_protect_mark do
+          coefficient =
+            case current_result.setting["n-th"] do
+              1 -> 1
+              2 -> 0.85
+              3 -> 0.7
+              _ -> 0.6
+            end
+
+          r =
+            ExamWeb.MarkSubject.create_mark_by_result_exam(
+              id_user,
+              "#{id_exam}",
+              result,
+              data.data.subject,
+              data.data.class,
+              id_ref,
+              coefficient
+            )
+
+          IO.inspect(r)
+        end
+
         result_t = Repo.update(changeset)
-        # IO.inspect(result_t)
-        json(conn, %{data: result, status: "ok", success: true})
+        %{data: result, status: "ok", success: true}
     end
+  end
+
+  def check_result(conn, parmas) do
+    client_ans = parmas["ans"]
+    id_exam = parmas["id_exam"]
+    id_user = conn.assigns.user.user_id
+    id_ref = parmas["id_ref"]
+    source = parmas["source"] || "exam"
+    data = get_exam(id_exam, true, id_user)
+
+    result = check_result_data(client_ans, id_exam, id_user, id_ref, "exam")
+
+    json(conn, result)
   end
 
   def change_user(conn, params) do

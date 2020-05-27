@@ -30,20 +30,33 @@ defmodule ExamWeb.ResultController do
 
   def create_default(id_exam, id_user, source) do
     # get created
-    r =
+    re =
       from(r in Result,
-        where: r.id_ref == ^id_exam and r.user_id == ^id_user and r.status == "in_process"
+        where: r.id_ref == ^id_exam and r.user_id == ^id_user
       )
-      |> Repo.one()
+      |> Repo.all()
 
-    case r do
-      nil ->
+
+    # count n-th do exam
+
+    count = Enum.count(re)
+    IO.inspect(count)
+    # filter the exam inprocess
+    r =
+      re
+      |> Enum.filter(fn o ->
+        o.status == "in_process"
+      end)
+    has_protect_mark_default = if count > 1 do true else false end
+
+    case Enum.count(r) do
+      0 ->
         changeset =
           Result.changeset(%Result{}, %{
             "result" => [],
             "id_ref" => id_exam,
             "user_id" => id_user,
-            "setting" => %{},
+            "setting" => %{"n-th" => count, "protect_mark" => has_protect_mark_default},
             "source" => source,
             "status" => "in_process"
           })
@@ -60,12 +73,14 @@ defmodule ExamWeb.ResultController do
             %{success: false, data: %{}, status: "Fail when create defaul"}
         end
 
-      data ->
-        id =
-          data
+      _ ->
+        IO.inspect(r)
+        da_result =
+          r
+          |> Enum.at(0)
           |> Map.take([:id, :result, :setting])
 
-        %{success: true, data: id}
+        %{success: true, data: da_result}
     end
   end
 
@@ -75,6 +90,7 @@ defmodule ExamWeb.ResultController do
     id_user = conn.assigns.user.user_id
     id_ref = parmas["id_ref"]
     currentTime = parmas["currentTime"]
+    protect_mark = parmas["protect_mark"] || false
 
     current_result =
       from(r in Result,
@@ -91,17 +107,110 @@ defmodule ExamWeb.ResultController do
         json(conn, %{success: false, status: "Not result"})
 
       r ->
-        changeset =
-          Result.changeset(r, %{
-            "result" => client_ans,
-            "setting" => %{"currentTime" => currentTime}
-          })
+        {:ok, now} = DateTime.now("Etc/UTC")
 
-        case Repo.update(changeset) do
-          {:ok, struct} -> json(conn, %{success: true, data: %{}})
-          _ -> json(conn, %{success: false, data: %{}})
+        if(
+          Map.has_key?(r.setting, "start_time")
+          # && DateTime.diff(now, r.setting["start_time"]) < 1000 * 1.5 * r.setting["num"]
+        ) do
+          # only change protect mark if n-th > 1
+          has_protect_mark = if r.setting["n-th"] > 1 do protect_mark else  false end
+          changeset =
+            Result.changeset(r, %{
+              "result" => client_ans,
+              "setting" =>
+                Map.merge(r.setting, %{
+                  "currentTime" => currentTime,
+                  "protect_mark" => has_protect_mark
+                })
+            })
+
+          case Repo.update(changeset) do
+            {:ok, struct} -> json(conn, %{success: true, data: %{}})
+            _ -> json(conn, %{success: false, data: %{}})
+          end
+        else
+          json(conn, %{success: false, data: %{}})
         end
     end
+  end
+
+  def start_exam(conn, parmas) do
+    id_exam = parmas["id_exam"]
+    id_user = conn.assigns.user.user_id
+    id_ref = parmas["id_ref"]
+    currentTime = parmas["currentTime"]
+
+    current_result =
+      from(r in Result,
+        where:
+          r.id == ^id_ref and r.id_ref == ^id_exam and r.user_id == ^id_user and
+            r.status == "in_process"
+      )
+      |> Repo.one()
+
+    exam = ExamWeb.ExamController.get_exam(id_exam, false, id_user)
+    # IO.inspect(current_result)
+
+    case current_result do
+      nil ->
+        json(conn, %{success: false, status: "Not result"})
+
+      r ->
+        IO.inspect(r.setting)
+
+        if Map.has_key?(r.setting, "start_time") do
+          json(conn, %{success: true, data: %{"start_time" => r.setting["start_time"]}})
+        else
+          {:ok, now} = DateTime.now("Etc/UTC")
+
+          changeset =
+            Result.changeset(r, %{
+              "setting" =>  Map.merge(r.setting, %{"start_time" => now, "num" => Enum.count(exam.data.question)})
+            })
+
+          case Repo.update(changeset) do
+            {:ok, struct} ->
+              IO.inspect(Enum.count(exam.data.question))
+
+              GenServer.cast(
+                ExamWeb.Process,
+                {:auto_check,
+                 %{
+                   "id_ref" => id_ref,
+                   "num" => Enum.count(exam.data.question),
+                   "time" => Enum.count(exam.data.question) * 1000 * 1.5
+                 }}
+              )
+
+              json(conn, %{success: true, data: %{"start_time" => now}})
+
+            _ ->
+              json(conn, %{success: false, data: %{}})
+          end
+        end
+    end
+  end
+
+  def auto_check(id_ref) do
+    result = Repo.get!(Result, id_ref)
+
+    client_ans =
+      Enum.reduce(result.result, %{}, fn d, acc ->
+        acc =
+          acc
+          |> Map.put(d["id"], d["your_ans"])
+      end)
+
+    id_exam= result.id_ref
+    id_user = result.user_id
+
+    data = ExamWeb.ExamController.check_result_data(client_ans, id_exam, id_user, id_ref, "exam")
+
+    ExamWeb.Endpoint.broadcast!("exam:#{id_exam}", "get_result", %{
+      data: data,
+      success: true
+    })
   end
 
   # def create(conn, parmas)do
@@ -180,18 +289,20 @@ defmodule ExamWeb.ResultController do
     changeset =
       Result.changeset(%Result{}, %{
         "result" => result,
-        "id_ref" => "#{id_ref}",
+        "id_ref" => id_ref,
         "user_id" => id_user,
         "setting" => %{},
-        "source" => source
+        "source" => source,
+        "status" => "done"
       })
       |> Repo.insert()
 
-    # IO.inspect(changeset)
+    IO.inspect(changeset)
 
     case changeset do
-      {:ok, data} -> %{success: true, data: %{}}
-      _ -> %{success: false, data: %{}}
+      # return id_result when successs
+      {:ok, data} -> %{success: true, data: data.id}
+      _ -> %{success: false, data: nil}
     end
   end
 end
