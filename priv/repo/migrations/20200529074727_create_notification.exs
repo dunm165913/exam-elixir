@@ -5,7 +5,7 @@ defmodule Exam.Repo.Migrations.CreateBotification do
     create table(:notifications) do
       add :data, :map
       add :from, :map
-      add :to, :string
+      add :to, :integer
       add :setting, :map
       add :status, :string
       add :media, :map

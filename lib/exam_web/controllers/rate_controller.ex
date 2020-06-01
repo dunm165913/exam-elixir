@@ -3,7 +3,7 @@ defmodule ExamWeb.RateController do
 
   import Ecto.Query, only: [from: 2]
   plug(Exam.Plugs.Auth)
-  alias Exam.{User, Result, RateExam}
+  alias Exam.{User, Result, RateExam, Exam}
 
   # get rate of user
   @spec index(Plug.Conn.t(), nil | keyword | map) :: Plug.Conn.t()
@@ -24,7 +24,10 @@ defmodule ExamWeb.RateController do
     id_exam = params["id_exam"]
     id_user = conn.assigns.user.user_id
 
-    rate =
+    e = Repo.get(Exam, id_exam)
+    # check cant not rate exam when not do
+    if e.publish || id_user in e.list_user_do do
+      rate =
       from(r in RateExam, where: r.exam_id == ^id_exam and r.user_id == ^id_user, select: r)
       |> Repo.one()
 
@@ -67,6 +70,12 @@ defmodule ExamWeb.RateController do
 
         json(conn, data)
     end
+  else
+    json(conn, %{data: %{}, message: "Cant create rate", success: false})
+    end
+
+
+
   end
 
   # def get_rate_exam(_, id_user) do

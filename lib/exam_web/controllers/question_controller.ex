@@ -24,14 +24,23 @@ defmodule ExamWeb.QuestionController do
         json(conn, %{data: %{}, status: "No id question", success: false})
 
       _ ->
-        data = get_question(id_question)
+        data = Repo.get(Question, id_question)
 
         case data do
           nil ->
             json(conn, %{data: %{}, status: "No question", success: false})
 
-          {:ok, data} ->
-            json(conn, %{data: data, status: "ok", success: true})
+          data ->
+            {:ok, d} =
+              data
+              |> Map.drop([:__meta__])
+              |> Poison.encode()
+
+            l =
+              d
+              |> Poison.decode!()
+
+            json(conn, %{data: l, status: "ok", success: true})
         end
     end
   end
@@ -505,6 +514,200 @@ defmodule ExamWeb.QuestionController do
           _ ->
             json(conn, %{data: %{}, success: false, message: "Lỗi khi xoá data"})
         end
+    end
+  end
+
+  def get_q(c, s, l, a, f, id_user, st) do
+    class =
+      if c == "all" do
+        ["10", "11", "12"]
+      else
+        [c]
+      end
+
+    subject =
+      if s == "all" do
+        ["T", "L", "H"]
+      else
+        [s]
+      end
+
+    level =
+      if l == "all" do
+        ["1", "2", "2"]
+      else
+        [l]
+      end
+
+    st =
+      if st == "all" do
+        ["done", "review", "inreview"]
+      else
+        [st]
+      end
+
+    query =
+      case a do
+        nil ->
+          case f do
+            "all" ->
+              from(q in Question,
+                where:
+                  q.class in ^class and q.subject in ^subject and q.level in ^level and
+                    q.status in ^st,
+                select: q,
+                limit: 30,
+                order_by: [desc: :id]
+              )
+
+            _ ->
+              from(q in Question,
+                where:
+                  q.class in ^class and q.subject in ^subject and q.level in ^level and
+                    q.user_id == ^id_user and q.status in ^st,
+                select: q,
+                limit: 30,
+                order_by: [desc: :id]
+              )
+          end
+
+        _ ->
+          case f do
+            "all" ->
+              from(q in Question,
+                where:
+                  q.class in ^class and q.subject in ^subject and q.level in ^level and
+                    q.status in ^st,
+                group_by: q.id,
+                having: q.id < ^a,
+                select: q,
+                limit: 30,
+                order_by: [desc: :id]
+              )
+
+            _ ->
+              from(q in Question,
+                where:
+                  q.class in ^class and q.subject in ^subject and q.level in ^level and
+                    q.user_id == ^id_user and q.status in ^st,
+                group_by: q.id,
+                having: q.id < ^a,
+                select: q,
+                limit: 30,
+                order_by: [desc: :id]
+              )
+          end
+      end
+      |> Repo.all()
+      |> Enum.map(fn d ->
+        {:ok, f} =
+          d
+          |> Map.drop([:__meta__])
+          |> Poison.encode()
+
+        f
+        |> Poison.decode!()
+      end)
+  end
+
+  def get_question(conn, parmas) do
+    id_user = conn.assigns.user.user_id
+    class = parmas["clas"] || "all"
+    subject = parmas["subject"] || "all"
+    level = parmas["level"] || "all"
+    afterQ = parmas["after"] || nil
+    from = parmas["from"] || "all"
+    status = parmas["status"] || "done"
+    data = get_q(class, subject, level, afterQ, from, id_user, status)
+
+    json(conn, %{data: data, success: true})
+  end
+
+  def get_q_by_user_and_id(id, u) do
+    q =
+      from(q in Question, where: q.id == ^id and q.user_id == ^u)
+      |> Repo.one()
+
+    case q do
+      nil ->
+        %{success: false, data: %{}, message: "Not found question"}
+
+      _ ->
+        %{success: true, data: q}
+    end
+  end
+
+  def update_question(conn, p) do
+    id_user = conn.assigns.user.user_id
+    id_q = p["data"]["id"]
+
+    #  get q
+    q = get_q_by_user_and_id(id_q, id_user)
+
+    if q.success do
+      case q.data.status do
+        "done" ->
+          json(conn, %{
+            data: %{},
+            success: false,
+            message: "Cant update question which has status is done"
+          })
+
+        "inreview" ->
+          json(conn, %{
+            data: %{},
+            success: false,
+            message: "Cant update question which has status is inreview"
+          })
+
+        "review" ->
+          result =
+            Question.changeset(q.data, p["data"])
+            |> Repo.update()
+
+          case result do
+            {:ok, f} ->
+              json(conn, %{data: %{}, success: true})
+
+            {:error, g} ->
+              IO.inspect(g)
+              json(conn, %{data: %{}, success: false, message: "Update faile"})
+          end
+      end
+    else
+      json(conn, q)
+    end
+  end
+
+  def update_q_by_admin(conn, p) do
+    id_user = conn.assigns.user.user_id
+    id_q = p["data"]["id"]
+    token = p["access_token"]
+    u = ExamWeb.UserController.check_is_admin(token)
+
+    if u.success do
+      q = Repo.get(Question, id_q)
+
+      case q do
+        nil ->
+          %{success: false, data: %{}, message: "Not found question"}
+
+        _ ->
+          result =
+            Question.changeset(q, p["data"])
+            |> Repo.update()
+
+          case result do
+            {:ok, f} ->
+              json(conn, %{data: %{}, success: true})
+
+            {:error, g} ->
+              IO.inspect(g)
+              json(conn, %{data: %{}, success: false, message: "Update faile"})
+          end
+      end
+    else
+      json(conn, %{data: %{}, success: false, message: "Not admin"})
     end
   end
 end

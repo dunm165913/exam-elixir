@@ -36,7 +36,6 @@ defmodule ExamWeb.ResultController do
       )
       |> Repo.all()
 
-
     # count n-th do exam
 
     count = Enum.count(re)
@@ -47,7 +46,14 @@ defmodule ExamWeb.ResultController do
       |> Enum.filter(fn o ->
         o.status == "in_process"
       end)
-    has_protect_mark_default = if count > 1 do true else false end
+
+    # alaway false with custom_exam
+    has_protect_mark_default =
+      if count > 0 do
+        true
+      else
+        false
+      end
 
     case Enum.count(r) do
       0 ->
@@ -56,7 +62,7 @@ defmodule ExamWeb.ResultController do
             "result" => [],
             "id_ref" => id_exam,
             "user_id" => id_user,
-            "setting" => %{"n-th" => count, "protect_mark" => has_protect_mark_default},
+            "setting" => %{"n-th" => count + 1, "protect_mark" => has_protect_mark_default},
             "source" => source,
             "status" => "in_process"
           })
@@ -75,6 +81,7 @@ defmodule ExamWeb.ResultController do
 
       _ ->
         IO.inspect(r)
+
         da_result =
           r
           |> Enum.at(0)
@@ -114,7 +121,13 @@ defmodule ExamWeb.ResultController do
           # && DateTime.diff(now, r.setting["start_time"]) < 1000 * 1.5 * r.setting["num"]
         ) do
           # only change protect mark if n-th > 1
-          has_protect_mark = if r.setting["n-th"] > 1 do protect_mark else  false end
+          has_protect_mark =
+            if r.setting["n-th"] > 1 do
+              protect_mark
+            else
+              false
+            end
+
           changeset =
             Result.changeset(r, %{
               "result" => client_ans,
@@ -166,7 +179,11 @@ defmodule ExamWeb.ResultController do
 
           changeset =
             Result.changeset(r, %{
-              "setting" =>  Map.merge(r.setting, %{"start_time" => now, "num" => Enum.count(exam.data.question)})
+              "setting" =>
+                Map.merge(r.setting, %{
+                  "start_time" => now,
+                  "num" => Enum.count(exam.data.question)
+                })
             })
 
           case Repo.update(changeset) do
@@ -202,7 +219,7 @@ defmodule ExamWeb.ResultController do
           |> Map.put(d["id"], d["your_ans"])
       end)
 
-    id_exam= result.id_ref
+    id_exam = result.id_ref
     id_user = result.user_id
 
     data = ExamWeb.ExamController.check_result_data(client_ans, id_exam, id_user, id_ref, "exam")
@@ -304,5 +321,30 @@ defmodule ExamWeb.ResultController do
       {:ok, data} -> %{success: true, data: data.id}
       _ -> %{success: false, data: nil}
     end
+  end
+
+  @spec get_statistic_exam(any) :: %{data: any, success: true}
+  def get_statistic_exam(id_e) do
+    r =
+      from(r in Result,
+        join: u in User,
+        on: u.id == r.user_id,
+        where: r.id_ref == ^id_e and r.source == "exam",
+        select: %{
+          result: r.result,
+          setting: r.setting,
+          status: r.status,
+          at: r.inserted_at,
+          id: r.id,
+          user: %{id: r.user_id, name: u.name, email: u.email}
+        }
+      )
+      |> Repo.all()
+
+    data = %{data: r, success: true}
+  end
+
+  def my_exam_done(conn, p) do
+    id_user = conn.assigns.user.user_id
   end
 end

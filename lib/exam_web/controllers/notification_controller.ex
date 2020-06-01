@@ -7,20 +7,13 @@ defmodule ExamWeb.NotificationController do
 
   def create(conn, params) do
     id_user = conn.assigns.user.user_id
-
   end
 
   def index(conn, params) do
     # get notification
     id_user = conn.assigns.user.user_id
-      data  = get_noti("#{id_user}")
+    data = get_noti("#{id_user}")
     json(conn, data)
-  end
-
-  def create(conn, params) do
-    id_user = conn.assigns.user.user_id
-    from = params["from"]
-    data = params["data"]
   end
 
   def create_noti(data) do
@@ -109,5 +102,35 @@ defmodule ExamWeb.NotificationController do
       |> Repo.update_all(set: [status: "read"])
 
     %{data: %{}, success: true}
+  end
+
+  def create_notification_exam(p) do
+    changset =
+      Notification.changeset(%Notification{}, Map.merge(p, %{"status" => "unread"}))
+      |> Repo.insert()
+
+    case changset do
+      {:ok, f} ->
+        {:ok, d} =
+          f
+          |> Map.drop([:__meta__])
+          |> Poison.encode()
+
+        d =
+          d
+          |> Poison.decode!()
+
+        IO.inspect(d)
+        # broad via socket
+        ExamWeb.Endpoint.broadcast!(
+          "notification:#{p["to"]}",
+          "get_notification",
+          d
+        )
+
+      {:error, f} ->
+        IO.inspect(f)
+        nil
+    end
   end
 end

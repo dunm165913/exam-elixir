@@ -8,7 +8,7 @@ defmodule Exam.Notification do
     field :data, :map
     field :media, :map
     field :from, :map
-    field :to, :string
+    field :to, :integer
     field :actions, {:array, :map}
     field :setting, :map
     field :status, :string

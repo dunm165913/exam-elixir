@@ -6,7 +6,17 @@ defmodule ExamWeb.ExamController do
 
   plug(
     Exam.Plugs.Auth
-    when action in [:index, :check_result, :change_user, :change_question, :get_intro]
+    when action in [
+           :index,
+           :check_result,
+           :change_user,
+           :change_question,
+           :get_intro,
+           :create,
+           :my_exam,
+           :get_info,
+           :update_exam
+         ]
   )
 
   alias Exam.Question
@@ -14,6 +24,7 @@ defmodule ExamWeb.ExamController do
   alias Exam.Result
   alias Exam.Exam
 
+  @spec index(Plug.Conn.t(), nil | keyword | map) :: Plug.Conn.t()
   def index(conn, parmas) do
     id_exam = parmas["id"]
     # IO.inspect(parmas)
@@ -48,6 +59,94 @@ defmodule ExamWeb.ExamController do
     json(conn, %{})
   end
 
+  def create(conn, params) do
+    data = params["data"] || %{}
+    id_user = conn.assigns.user.user_id
+
+    user = Repo.get(User, id_user)
+    IO.inspect(user.role)
+
+    # roll == admiin => exam must be published and type's exam is exam
+    # if roll != admin => type's exam is custom exam and
+
+    result =
+      case user.role do
+        "admin" ->
+          Exam.changeset(
+            %Exam{},
+            Map.merge(data, %{"user_id" => id_user, "publish" => true, "type_exam" => "exam"})
+          )
+
+        _ ->
+          Exam.changeset(
+            %Exam{},
+            Map.merge(data, %{"user_id" => id_user, "type_exam" => "custom_exam"})
+          )
+      end
+      |> Repo.insert()
+
+    case result do
+      {:ok, d} ->
+        {:ok, j} =
+          d
+          |> Map.drop([:__meta__])
+          |> Poison.encode()
+
+        j =
+          j
+          |> Poison.decode!()
+
+        listU =
+          j["list_user_do"]
+          |> Enum.map(fn x ->
+            GenServer.cast(
+              ExamWeb.Notification,
+              {:create_notification_exam,
+               %{
+                 "from" => %{"source" => "De thi #{j["id"]}", "exam" => j["id"]},
+                 "to" => x,
+                 "media" => %{},
+                 "data" => %{"message" => "Ban duoc moi tham gia lam bai thi"},
+                 "actions" => %{"url" => "/exam/#{j["id"]}/intro"},
+                 "setting" => %{}
+               }}
+            )
+          end)
+
+        send_noti(j["list_user_do"] || [], j)
+        json(conn, %{data: j, success: true})
+
+      # send Notification to User who can do
+
+      {:error, c} ->
+        IO.inspect(c)
+        json(conn, %{data: %{}, success: false, message: "Kieem tra lai thong tin"})
+    end
+  end
+
+  def send_noti(listU, exam) do
+    listU
+    |> Enum.map(fn x ->
+      GenServer.cast(
+        ExamWeb.Notification,
+        {:create_notification_exam,
+         %{
+           "from" => %{"source" => "De thi #{exam["id"]}", "exam" => exam["id"]},
+           "to" => x,
+           "media" => %{},
+           "data" => %{"message" => "Ban duoc moi tham gia lam bai thi"},
+           "actions" => [],
+           "setting" => %{}
+         }}
+      )
+    end)
+  end
+
+  @spec check_result_data(any, any, any, any, any) :: %{
+          data: any,
+          status: <<_::16, _::_*128>>,
+          success: boolean
+        }
   def check_result_data(client_ans, id_exam, id_user, id_ref, source) do
     data = get_exam(id_exam, true, id_user)
 
@@ -86,10 +185,14 @@ defmodule ExamWeb.ExamController do
         setting = current_result.setting
 
         has_protect_mark =
-          if Map.has_key?(setting, "protect_mark") do
-            setting["protect_mark"]
+          if data.type_exam == "custom_exam" do
+            true
           else
-            false
+            if Map.has_key?(setting, "protect_mark") do
+              setting["protect_mark"]
+            else
+              false
+            end
           end
 
         changeset =
@@ -143,81 +246,94 @@ defmodule ExamWeb.ExamController do
     json(conn, result)
   end
 
-  def change_user(conn, params) do
-    id_user_list = params["user_do"]
-    id_exam = params["id_exam"]
+  def update_exam(conn, p) do
     id_user = conn.assigns.user.user_id
-    # get exam
-    data_exam = get_exam(id_exam, true, id_user)
-    # check, not update when 1 day-offs
-    # case
+    id_e = p["data"]["id"] || 0
+    IO.inspect(id_e)
 
-    case Map.has_key?(data_exam, :error) do
-      true ->
-        json(conn, %{data: %{}, status: "Exam isn't existed", success: false})
+    e =
+      from(e in Exam,
+        where: e.id == ^id_e and e.user_id == ^id_user and e.type_exam == "custom_exam"
+      )
+      |> Repo.one()
 
-      false ->
-        # new_user_do =
-        #   Enum.filter(id_user_list ++ data_exam.data.list_user_do, fn x ->
-        #     (!Enum.member?(id_user_list, x) && Enum.member?(data_exam.data.list_user_do, x)) or
-        #       (!Enum.member?(data_exam.data.list_user_do, x) && Enum.member?(id_user_list, x))
-        #   end)
+    IO.inspect(e)
 
-        # # IO.inspect(new_user_do)
-        # update
-        exam = Repo.get!(Exam, id_exam)
-        exam = Ecto.Changeset.change(exam, list_user_do: id_user_list)
+    case e do
+      nil ->
+        json(conn, %{data: %{}, message: "Not found exam", success: false})
 
-        case Repo.update(exam) do
-          {:ok, struct} ->
-            # IO.inspect(struct)
+      _ ->
+        result =
+          Exam.changeset(e, Map.merge(p["data"], %{"type_exam" => "custom_exam"}))
+          |> Repo.update()
 
-            da =
-              struct
-              |> Map.drop([:__meta__])
-              |> Poison.encode()
+        case result do
+          {:ok, s} ->
+            IO.inspect(s)
+            json(conn, %{data: %{}, success: true})
 
-            case da do
-              {:ok, data} -> json(conn, %{data: data, status: "ok", success: true})
-              _ -> json(conn, %{data: da, status: "ok", success: false})
-            end
-
-          _ ->
-            json(conn, %{data: %{}, status: "update fail", success: false})
+          {:error, f} ->
+            IO.inspect(f)
+            json(conn, %{data: %{}, success: false, message: "Check your info"})
         end
     end
   end
 
-  def change_question(conn, params) do
-    id_questions = params["question"]
-    id_exam = params["id_exam"]
-    id_user = conn.assigns.user.user_id
-    # get exam
-    data_exam = get_exam(id_exam, true, id_user)
-    # check, not update when 1 day-offs
+  def check_is_creator(conn, p) do
+    id_e = p["id"]
+    token = p["token"]
 
-    case Map.has_key?(data_exam, :error) do
-      true ->
-        json(conn, %{data: %{}, status: "Exam isn't existed", success: false})
+    result = check_is_creator_exam(token, id_e)
+    json(conn, result)
+  end
 
-      false ->
-        list_id = Enum.map(data_exam.data.question, fn x -> x.id end)
-        # IO.inspect(list_id)
+  def check_is_creator_exam(token, id_e) do
+    u =
+      try do
+        JsonWebToken.verify(token, %{
+          key: "gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr9C"
+        })
+      rescue
+        RuntimeError -> nil
+      end
 
-        new_question =
-          Enum.filter(list_id ++ id_questions, fn x ->
-            (!Enum.member?(id_questions, x) && Enum.member?(list_id, x)) or
-              (!Enum.member?(list_id, x) && Enum.member?(id_questions, x))
-          end)
+    result =
+      case u do
+        {:error, h} ->
+          %{success: false}
 
-        # update
-        exam = Repo.get!(Exam, id_exam)
-        exam = Ecto.Changeset.change(exam, question: new_question)
+        {:ok, us} ->
+          e =
+            from(e in Exam,
+              where: e.id == ^id_e and e.user_id == ^us.user_id and e.type_exam == "custom_exam"
+            )
+            |> Repo.one()
 
-        case Repo.update(exam) do
-          {:ok, struct} -> json(conn, %{data: %{}, status: "ok", success: true})
-          _ -> json(conn, %{data: %{}, status: "update fail", success: false})
-        end
+          case e do
+            nil -> %{success: false}
+            _ -> %{success: true}
+          end
+      end
+  end
+
+  def statistic(conn, p) do
+    token = p["access_token"]
+    id_e = p["id"]
+    is_owner = check_is_creator_exam(token, id_e)
+
+    if(is_owner.success) do
+      data = ExamWeb.ResultController.get_statistic_exam(id_e)
+      # need filter by User
+      exam = Repo.get(Exam, id_e)
+
+      json(conn, data)
+    else
+      json(conn, %{
+        data: %{},
+        success: false,
+        message: "Yo dont have enough permission to do this action"
+      })
     end
   end
 
@@ -295,7 +411,8 @@ defmodule ExamWeb.ExamController do
           question: e.question,
           list_user_do: e.list_user_do,
           number_students: e.number_students,
-          publish: e.publish
+          publish: e.publish,
+          type_exam: e.type_exam
         }
         # preload: [:question]
       )
@@ -350,7 +467,7 @@ defmodule ExamWeb.ExamController do
 
         case data_exam.publish do
           true ->
-            %{data: data}
+            %{data: data, success: true}
 
           false ->
             if id_user in data_exam.list_user_do do
@@ -359,6 +476,152 @@ defmodule ExamWeb.ExamController do
               %{data: %{}, status: "You cant do the exam", success: false}
             end
         end
+    end
+  end
+
+  def get_list(conn, params) do
+    t = get_exam_by_subject("T")
+    l = get_exam_by_subject("L")
+    h = get_exam_by_subject("H")
+
+    json(conn, %{
+      data: %{
+        T: t,
+        L: l,
+        H: h
+      },
+      success: true
+    })
+  end
+
+  def get_exam_by_subject(s) do
+    exam =
+      from(e in Exam,
+        where: e.subject == ^s and e.type_exam == "exam",
+        limit: 5,
+        order_by: [desc: :id],
+        select: %{
+          subject: e.subject,
+          publish: e.publish,
+          detail: e.detail,
+          id: e.id,
+          at: e.inserted_at,
+          start: e.start
+        }
+      )
+      |> Repo.all()
+  end
+
+  def my_exam(conn, p) do
+    subject = p["subject"] || "all"
+    afterE = p["after"] || nil
+    id_user = conn.assigns.user.user_id
+
+    subject =
+      if subject == "all" do
+        ["T", "L", "H"]
+      else
+        ["subject"]
+      end
+
+    exam =
+      case afterE do
+        nil ->
+          from(e in Exam,
+            where:
+              e.subject in ^subject and e.type_exam == "custom_exam" and e.user_id == ^id_user,
+            limit: 5,
+            order_by: [desc: :id],
+            select: e
+          )
+
+        _ ->
+          from(e in Exam,
+            where:
+              e.subject in ^subject and e.type_exam == "custom_exam" and e.user_id == ^id_user,
+            group_by: e.id,
+            having: e.id < ^afterE,
+            limit: 5,
+            order_by: [desc: :id],
+            select: e
+          )
+      end
+      |> Repo.all()
+      |> Enum.map(fn d ->
+        {:ok, f} =
+          d
+          |> Map.drop([:__meta__])
+          |> Poison.encode()
+
+        f
+        |> Poison.decode!()
+      end)
+
+    json(conn, %{data: exam, success: true})
+  end
+
+  def get_info(conn, p) do
+    id_user = conn.assigns.user.user_id
+    id_e = p["id"] || 0
+
+    e =
+      from(e in Exam,
+        where: e.id == ^id_e and e.user_id == ^id_user,
+        select: [
+          :id,
+          :class,
+          :subject,
+          :time,
+          :start,
+          :publish,
+          :question,
+          :list_user_do,
+          :detail,
+          :user_id,
+          :inserted_at,
+          :setting
+        ]
+      )
+      |> Repo.one()
+
+    IO.inspect(e)
+
+    case e do
+      nil ->
+        json(conn, %{data: %{}, message: "Not found exam", success: false})
+
+      _ ->
+        q =
+          from(q in Question,
+            where: q.id in ^(e.question || []),
+            select: %{
+              id: q.id,
+              as: q.as,
+              correct_ans: q.correct_ans,
+              question: q.question,
+              url_media: q.url_media,
+              status: q.status
+            }
+          )
+          |> Repo.all()
+
+        u =
+          from(u in User,
+            where: u.id in ^(e.list_user_do || []),
+            select: %{id: u.id, email: u.email, name: u.name}
+          )
+          |> Repo.all()
+
+        {:ok, ex} =
+          Map.merge(e, %{"question_data" => q, "user_data" => u})
+          |> Map.drop([:__meta__])
+          |> Poison.encode()
+
+        e =
+          ex
+          |> Poison.decode!()
+
+        json(conn, %{data: e, success: true})
     end
   end
 end

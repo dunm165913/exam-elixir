@@ -1,15 +1,15 @@
-defmodule Exam.Message do
+defmodule Exam.New do
   #   use Ecto.Schema
   #   import Ecto.Changeset
   alias Exam.User
   use ExamWeb, :model
 
-  schema "messages" do
-    field :message, :string
+  schema "news" do
+    field :data, :string
     field :id_ref, :string
     field :setting, :map
     field :source, :string
-    field :user_info, :map
+    field :title, :string
     belongs_to :user, User
 
     timestamps()
@@ -19,20 +19,22 @@ defmodule Exam.Message do
   def changeset(user, attrs) do
     user
     |> cast(attrs, [
-      :message,
+      :data,
       :id_ref,
       :setting,
       :source,
       :user_id,
-      :user_info
+      # :title
+      # :user_info
     ])
     |> validate_required([
-      :message,
+      :data,
       :id_ref,
       :setting,
       :source,
       :user_id,
-      :user_info
+      # :title
+      # :user_info
     ])
   end
 end

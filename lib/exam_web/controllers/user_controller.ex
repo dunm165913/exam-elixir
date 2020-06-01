@@ -116,17 +116,66 @@ defmodule ExamWeb.UserController do
     end
   end
 
+  def search(conn, params) do
+    sear = params["search"]
+    data = find_user(sear)
+    json(conn, data)
+  end
+
   defp find_user(emails) do
     user =
       from(u in User,
-        where: u.email in ^emails,
+        where: fragment("? ~ ?", u.email, ^emails) or fragment("? ~ ?", u.name, ^emails),
         select: %{
           id: u.id,
+          name: u.name,
           email: u.email,
           role: u.role
         }
       )
       |> Repo.all()
-   %{data: user, status: "ok", success: true}
+
+    %{data: user, status: "ok", success: true}
+  end
+
+  def check_admin(conn, p) do
+    token = p["token"]
+    data = check_is_admin(token)
+    json(conn, data)
+  end
+
+  def check_is_admin(t) do
+    u =
+      try do
+        JsonWebToken.verify(t, %{
+          key: "gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr9C"
+        })
+      rescue
+        RuntimeError -> nil
+      end
+
+    case u do
+      nil ->
+        %{data: %{}, success: false}
+
+      {:error, _} ->
+        %{data: %{}, success: false}
+
+      {:ok, du} ->
+        data_u = Repo.get(User, du.user_id)
+
+        case data_u do
+          nil ->
+            %{data: %{}, success: false}
+
+          _ ->
+            IO.inspect(data_u)
+            if data_u.role == "admin" do
+              %{data: %{}, success: true}
+            else
+              %{data: %{}, success: false}
+            end
+        end
+    end
   end
 end

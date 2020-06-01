@@ -10,7 +10,7 @@ defmodule Exam.Plugs.Auth do
     case conn.query_params["access_token"] do
       nil ->
         conn
-        |> send_resp(200, Jason.encode!(%{data: %{}, status: "No acctes_token", success: false}))
+        |> send_resp(200, Jason.encode!(%{data: %{}, message: "No acctes_token", success: false}))
         |> halt()
 
       _ ->
@@ -35,13 +35,13 @@ defmodule Exam.Plugs.Auth do
 
             {:error, _} ->
               conn
-              |> send_resp(200, Jason.encode!(%{data: %{}, status: "Auth fail", success: false}))
+              |> send_resp(200, Jason.encode!(%{data: %{}, message: "Auth fail", success: false}))
               |> halt()
           end
         rescue
           RuntimeError ->
             conn
-            |> send_resp(200, Jason.encode!(%{data: %{}, status: "Auth fail", success: false}))
+            |> send_resp(200, Jason.encode!(%{data: %{}, message: "Auth fail", success: false}))
             |> halt()
         end
     end

@@ -41,7 +41,7 @@ defmodule ExamWeb.QuestionChannel do
   def handle_in("get_question", payload, socket) do
     clas = payload["class"] || "10"
     sub = payload["subject"] || "T"
-    question = ExamWeb.QuestionController.get_random()
+    question = ExamWeb.QuestionController.get_random(sub, clas)
 
     if question.success do
       ExamWeb.Cache.set("live_question", question.data, 120_000)
@@ -134,11 +134,11 @@ defmodule ExamWeb.QuestionChannel do
                   180
                 )
 
-                ExamWeb.MarkSubject.create_mark_by_question(id, "#{data["id"]}", true,  "live_question_#{sub}_#{clas}_result", result.data)
+              ExamWeb.MarkSubject.create_mark_by_question(id, "#{data["id"]}", true,  "live_question_#{sub}_#{clas}_result", result.data)
 
                 %{success: true, create: create, name: name, time: time, id_user: id, ans: ans}
               else
-                result =ExamWeb.ResultController.create_result(
+                 result  = ExamWeb.ResultController.create_result(
                   [%{result: false, id: data["id"], your_ans: ans}],
                   data["id"] || id_question,
                   id,
@@ -204,10 +204,10 @@ defmodule ExamWeb.QuestionChannel do
     end
   end
 
-  def handle_out("get_question", payload, socket) do
-    # # IO.inspect(">>>>>>>>>>>>>>>>>>>>.")
-    question = ExamWeb.QuestionController.get_random()
-    # # IO.inspect(question)
-    {:reply, {:ok, question}, socket}
-  end
+  # def handle_out("get_question", payload, socket) do
+  #   # # IO.inspect(">>>>>>>>>>>>>>>>>>>>.")
+  #   question = ExamWeb.QuestionController.get_random()
+  #   # # IO.inspect(question)
+  #   {:reply, {:ok, question}, socket}
+  # end
 end
