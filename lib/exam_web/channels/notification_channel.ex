@@ -4,6 +4,7 @@ defmodule ExamWeb.NotificationChannel do
   alias Exam.User
   alias Exam.Result
   alias Exam.Exam
+  alias Exam.Notification
 
   def join("notification:" <> endp, payload, socket) do
     # # IO.inspect(socket)
@@ -12,6 +13,16 @@ defmodule ExamWeb.NotificationChannel do
     else
       {:error, %{reason: "unauthorized"}}
     end
+  end
+
+  def handle_in("mark_read_notification", payload, socket) do
+    #
+    id_n = payload["id_n"]
+    to = payload["id_user"]
+    IO.inspect(payload)
+
+    ExamWeb.NotificationController.mark_unread_noti(id_n, to)
+      {:noreply, socket}
   end
 
   # Channels can be used in a request/response fashion

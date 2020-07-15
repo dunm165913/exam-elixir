@@ -10,7 +10,7 @@ defmodule Exam.Plugs.Auth do
     case conn.query_params["access_token"] do
       nil ->
         conn
-        |> send_resp(200, Jason.encode!(%{data: %{}, message: "No acctes_token", success: false}))
+        |> send_resp(200, Jason.encode!(%{data: %{}, message: "No access_token", success: false}))
         |> halt()
 
       _ ->

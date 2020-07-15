@@ -28,54 +28,51 @@ defmodule ExamWeb.RateController do
     # check cant not rate exam when not do
     if e.publish || id_user in e.list_user_do do
       rate =
-      from(r in RateExam, where: r.exam_id == ^id_exam and r.user_id == ^id_user, select: r)
-      |> Repo.one()
+        from(r in RateExam, where: r.exam_id == ^id_exam and r.user_id == ^id_user, select: r)
+        |> Repo.one()
 
-    case rate do
-      nil ->
-        changeset =
-          RateExam.changeset(%RateExam{}, %{
-            star: "#{params["rate"]}",
-            content: "#{params["content"]}",
-            exam_id: id_exam,
-            user_id: id_user
-          })
+      case rate do
+        nil ->
+          changeset =
+            RateExam.changeset(%RateExam{}, %{
+              star: "#{params["rate"]}",
+              content: "#{params["content"]}",
+              exam_id: id_exam,
+              user_id: id_user
+            })
 
-        result = Repo.insert(changeset)
+          result = Repo.insert(changeset)
 
-        data =
-          case result do
-            {:ok, s} -> get_data(s)
-            _ -> %{success: false, data: %{}, status: "Error when insert"}
-          end
+          data =
+            case result do
+              {:ok, s} -> get_data(s)
+              _ -> %{success: false, data: %{}, message: "Kiểm tra lại thông tin"}
+            end
 
-        json(conn, data)
+          json(conn, data)
 
-      r ->
-        changeset =
-          RateExam.changeset(r, %{
-            star: "#{params["rate"]}",
-            content: "#{params["content"]}",
-            exam_id: id_exam,
-            user_id: id_user
-          })
+        r ->
+          changeset =
+            RateExam.changeset(r, %{
+              star: "#{params["rate"]}",
+              content: "#{params["content"]}",
+              exam_id: id_exam,
+              user_id: id_user
+            })
 
-        result = Repo.update(changeset)
+          result = Repo.update(changeset)
 
-        data =
-          case result do
-            {:ok, s} -> get_data(s)
-            _ -> %{success: false, data: %{}, status: "Error when update"}
-          end
+          data =
+            case result do
+              {:ok, s} -> get_data(s)
+              _ -> %{success: false, data: %{}, status: "Error when update"}
+            end
 
-        json(conn, data)
+          json(conn, data)
+      end
+    else
+      json(conn, %{data: %{}, message: "Không thể tạo đánh giá", success: false})
     end
-  else
-    json(conn, %{data: %{}, message: "Cant create rate", success: false})
-    end
-
-
-
   end
 
   # def get_rate_exam(_, id_user) do

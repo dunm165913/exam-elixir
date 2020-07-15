@@ -13,6 +13,7 @@ defmodule Exam.User do
     field :name, :string
     field :password, :string
     field :role, :string, default: "student"
+    field :status, :string, default: "active"
     has_many :questions, Question
     has_many :results, Result
     has_many :media, Media
@@ -23,7 +24,7 @@ defmodule Exam.User do
   @doc false
   def changeset(user, attrs) do
     user
-    |> cast(attrs, [:name, :email, :password, :role, :codeVerfity])
-    |> validate_required([ :email, :password])
+    |> cast(attrs, [:name, :email, :password, :role, :codeVerfity, :status])
+    |> validate_required([:email, :password])
   end
 end

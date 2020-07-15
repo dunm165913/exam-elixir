@@ -23,34 +23,53 @@ defmodule ExamWeb.MessageChannel do
     user_id = payload["from"]
     user_info = payload["user_info"]
     name = user_info["name"]
-    conv = if idf < user_id do "conv_#{idf}_#{user_id}" else "conv_#{user_id}_#{idf}" end
-    result = ExamWeb.MessageController.create_message(conv, mes, user_id, name, "#{idf}")
 
-    if result.success do
-      # notification to user
-      {:ok, send_b} =
-        result.data
-        |> Map.drop([:__meta__])
-        |> Poison.encode()
+    conv =
+      if idf < user_id do
+        "conv_#{idf}_#{user_id}"
+      else
+        "conv_#{user_id}_#{idf}"
+      end
 
-      send_b =
-        send_b
-        |> Poison.decode!()
+    # only create meeshe if existed conv
+    cov = ExamWeb.FriendController.get_con(conv)
+    IO.inspect(cov)
 
+    if cov.success do
+      result = ExamWeb.MessageController.create_message(conv, mes, user_id, name, "#{idf}")
 
-      ExamWeb.Endpoint.broadcast!(
-        "message:user_#{idf}",
-        "get_message",
-        %{
-          data: send_b,
-          success: true
-        }
-      )
+      if result.success do
+        # notification to user
+        {:ok, send_b} =
+          result.data
+          |> Map.drop([:__meta__])
+          |> Poison.encode()
 
-      push(socket, "get_message", %{data: send_b, success: true})
+        send_b =
+          send_b
+          |> Poison.decode!()
+
+        ExamWeb.Endpoint.broadcast!(
+          "message:user_#{idf}",
+          "get_message",
+          %{
+            data: send_b,
+            success: true
+          }
+        )
+
+        push(socket, "get_message", %{data: send_b, success: true})
+      else
+        push(socket, "get_message", %{data: %{}, success: false})
+      end
+
       {:noreply, socket}
     else
-      push(socket, "get_message", %{data: %{}, success: false})
+      push(socket, "get_message", %{
+        data: %{message: "Bạn chưa kết nối với người này"},
+        success: false
+      })
+
       {:noreply, socket}
     end
   end

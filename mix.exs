@@ -20,11 +20,13 @@ defmodule Exam.MixProject do
   def application do
     [
       mod: {Exam.Application, []},
-      extra_applications: [:logger, :runtime_tools, ]
+      extra_applications: [:logger, :runtime_tools]
     ]
   end
 
-  def application do [applications: [:logger, :cloudex, :phoenix_pubsub]] end
+  def application do
+    [applications: [:logger, :cloudex, :otp_app]]
+  end
 
   # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["lib", "test/support"]
@@ -51,8 +53,7 @@ defmodule Exam.MixProject do
       {:poison, "~> 2.1", override: true},
       {:cors_plug, "~> 2.0"},
       {:httpoison, "~> 1.6", override: true},
-      {:cloudex, "~> 1.3.0"},
-
+      {:cloudex, "~> 1.3.0"}
     ]
   end
 

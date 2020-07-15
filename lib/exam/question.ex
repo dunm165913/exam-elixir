@@ -17,6 +17,7 @@ defmodule Exam.Question do
     field :detail, :string, default: ""
     field :status, :string, default: "review"
     field :mark, :float, default: 0.0
+    field :result_review, {:array, :map}
     # field :user_id, :integer
     belongs_to :user, User
 
@@ -37,13 +38,14 @@ defmodule Exam.Question do
       :parent_question,
       :type,
       :subject,
-      # :url_media,
+      :url_media,
       :level,
       :class,
       :user_id,
       # :detail,
-      # :status,
+      :status,
       # :mark
+      :result_review
     ])
     |> validate_required([
       :as,

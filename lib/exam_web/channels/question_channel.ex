@@ -69,7 +69,8 @@ defmodule ExamWeb.QuestionChannel do
       "live_chat_#{sub}_#{clas}",
       message,
       user_id,
-      payload["user_info"]["name"] || "No name"
+      payload["user_info"]["name"] || "No name",
+        "live_chat"
     )
 
     push(socket, "live_chat_#{sub}_#{clas}", %{data: payload, success: true})

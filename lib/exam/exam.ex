@@ -13,15 +13,20 @@ defmodule Exam.Exam do
     field :number_students, :integer
     field :publish, :boolean
     field :list_user_do, {:array, :integer}, default: []
-    field :question, {:array, :integer}
+    field :question, {:array, :string}
     field :detail, :string
     field :setting, :map
     field :type_exam, :string
+    field :status, :string
     belongs_to :user, User
 
     timestamps()
   end
 
+  @spec changeset(
+          {map, map} | %{:__struct__ => atom | %{__changeset__: map}, optional(atom) => any},
+          :invalid | %{optional(:__struct__) => none, optional(atom | binary) => any}
+        ) :: Ecto.Changeset.t()
   @doc false
   def changeset(e, attrs) do
     e
@@ -36,7 +41,8 @@ defmodule Exam.Exam do
       :list_user_do,
       :user_id,
       :setting,
-      :type_exam
+      :type_exam,
+      :status
     ])
     |> validate_required([
       :subject,

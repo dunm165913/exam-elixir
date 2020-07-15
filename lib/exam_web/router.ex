@@ -48,14 +48,28 @@ defmodule ExamWeb.Router do
         post("/search", UserController, :search)
         options("/search", UserController, :option)
         get("/check_admin", UserController, :check_admin)
+        get("/get_list", UserController, :get_list)
+        get("/info", UserController, :info)
+        get("/me", UserController, :me)
+        options("/lock_account", UserController, :option)
+        post("/lock_account", UserController, :lock_account)
+        options("/unlock_account", UserController, :option)
+        post("/unlock_account", UserController, :unlock_account)
       end
 
       scope "/question" do
         get("/", QuestionController, :index)
+
         post("/", QuestionController, :create)
         options("/", ExamController, :option)
         post("/update", QuestionController, :update_question)
+        post("/admin_update", QuestionController, :admin_update)
+        post("/admin_eject", QuestionController, :admin_eject)
+        options("/admin_eject", ExamController, :option)
+        options("/admin_update", ExamController, :option)
         options("/update", ExamController, :option)
+        post("/submit_by_admin", QuestionController, :submit_by_admin)
+        options("/submit_by_admin", ExamController, :option)
         get("/doquestion", QuestionController, :do_question)
         post("/checkquestion", QuestionController, :check_question)
         options("/checkquestion", ExamController, :option)
@@ -67,6 +81,8 @@ defmodule ExamWeb.Router do
         options("/question_new", ExamController, :option)
         get("/my_question", QuestionController, :get_question)
         get("/get_question", QuestionController, :get_question)
+        get("/get_list_by_admin", QuestionController, :get_list_by_admin)
+        get("/get_submit_question_by_admin", QuestionController, :get_submit_question_by_admin)
       end
 
       scope "/exam" do
@@ -85,6 +101,7 @@ defmodule ExamWeb.Router do
         get("/check_is_creator", ExamController, :check_is_creator)
         get("/statistic", ExamController, :statistic)
         get("/my_exam_done", ExamController, :my_exam_done)
+        get("/exam_by_admin", ExamController, :get_list_by_admin)
       end
 
       scope "rate" do
@@ -100,7 +117,7 @@ defmodule ExamWeb.Router do
       scope "message" do
         get("/", MessageController, :get_message)
         get("/exam", MessageController, :get_message_exam)
-        post("/exam", MessageController, :crxeate_message_exam)
+        post("/exam", MessageController, :create_message_exam)
         options("/exam", ExamController, :option)
       end
 
@@ -118,6 +135,7 @@ defmodule ExamWeb.Router do
       scope "/statistic" do
         get("/", MarkSubject, :get_mark)
         get("/subject", MarkSubject, :get_mark_subject)
+        get("/get_statistic_by_admin", MarkSubject, :get_statistic_by_admin)
       end
 
       scope "/news" do
@@ -127,6 +145,7 @@ defmodule ExamWeb.Router do
         post("/update", NewController, :update_note)
         options("/update", ExamController, :option)
         get("/detail", NewController, :detail)
+        get("/new_by_admin", NewController, :new_by_admin)
       end
 
       scope "/notification" do
@@ -141,6 +160,10 @@ defmodule ExamWeb.Router do
       scope "/friend" do
         get("/get_list_friend", FriendController, :get_list_friend)
         get("/get_message", FriendController, :get_message)
+        post("/make_friend", FriendController, :make_friend)
+        options("/make_friend", ExamController, :option)
+        post("/accept", FriendController, :accept)
+        options("/accept", ExamController, :option)
       end
     end
   end

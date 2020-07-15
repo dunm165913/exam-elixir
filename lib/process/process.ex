@@ -83,4 +83,9 @@ defmodule ExamWeb.Process do
     ExamWeb.ResultController.auto_check(id_ref)
     {:noreply, state}
   end
+
+  def handle_cast({:caculator_mark_after_submit_question, p}, state) do
+    ExamWeb.QuestionController.caculator_mark_after_submit_question(p)
+    {:noreply, state}
+  end
 end

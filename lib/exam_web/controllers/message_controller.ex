@@ -69,6 +69,7 @@ defmodule ExamWeb.MessageController do
     id_exam = parmas["id_exam"]
     message = parmas["message"]
     id_user = conn.assigns.user.user_id
+    IO.inspect(conn.assigns.user)
 
     exam =
       from(e in Exam,
@@ -100,7 +101,11 @@ defmodule ExamWeb.MessageController do
               setting: %{},
               id_ref: id_exam,
               user_id: id_user,
-              source: "exam_#{id_exam}"
+              source: "exam_#{id_exam}",
+              user_info: %{
+                id: id_user,
+                name: conn.assigns.user.name
+              }
             })
             |> Repo.insert()
 

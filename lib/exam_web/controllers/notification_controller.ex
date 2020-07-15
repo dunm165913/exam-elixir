@@ -133,4 +133,31 @@ defmodule ExamWeb.NotificationController do
         nil
     end
   end
+
+  def create_notification_question(p) do
+    changset =
+      Notification.changeset(%Notification{}, Map.merge(p, %{"status" => "unread"}))
+      |> Repo.insert()
+
+    case changset do
+      {:ok, f} ->
+         {:ok, d} =
+          f
+          |> Map.drop([:__meta__])
+          |> Poison.encode()
+
+        d =
+          d
+          |> Poison.decode!()
+        ExamWeb.Endpoint.broadcast!(
+          "notification:#{p["to"]}",
+          "get_notification",
+          d
+        )
+
+      {:error, f} ->
+        IO.inspect(f)
+        nil
+    end
+  end
 end

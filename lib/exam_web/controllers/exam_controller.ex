@@ -15,7 +15,8 @@ defmodule ExamWeb.ExamController do
            :create,
            :my_exam,
            :get_info,
-           :update_exam
+           :update_exam,
+           :my_exam_done
          ]
   )
 
@@ -27,7 +28,8 @@ defmodule ExamWeb.ExamController do
   @spec index(Plug.Conn.t(), nil | keyword | map) :: Plug.Conn.t()
   def index(conn, parmas) do
     id_exam = parmas["id"]
-    # IO.inspect(parmas)
+    create_default = parmas["creat_default"] || "true"
+
     id_user = conn.assigns.user.user_id
 
     case id_exam do
@@ -36,21 +38,32 @@ defmodule ExamWeb.ExamController do
 
       _ ->
         data = get_exam(id_exam, false, id_user)
+        IO.inspect(data)
 
         if data.success do
-          re = ExamWeb.ResultController.create_default(id_exam, id_user, "exam")
+          now = DateTime.utc_now()
 
-          if re.success do
-            data =
-              data
-              |> Map.put("result", re.data)
-
-            json(conn, %{data: data, success: true})
+          if now < data.data.start do
+            json(conn, %{data: %{}, success: false, message: "Chưa tới giờ làm bài"})
           else
-            json(conn, %{data: %{}, message: "error create default", success: false})
+            if create_default == "true" do
+              re = ExamWeb.ResultController.create_default(id_exam, id_user, "exam")
+
+              if re.success do
+                data =
+                  data
+                  |> Map.put("result", re.data)
+
+                json(conn, %{data: data, success: true})
+              else
+                json(conn, %{data: %{}, message: "Lỗi khi tạo default", success: false})
+              end
+            else
+              json(conn, %{data: data, success: true})
+            end
           end
         else
-          json(conn, %{data: %{}, message: "can do exam", success: false})
+          json(conn, %{data: %{}, message: "không thể làm bài thi", success: false})
         end
     end
   end
@@ -61,29 +74,66 @@ defmodule ExamWeb.ExamController do
 
   def create(conn, params) do
     data = params["data"] || %{}
+
+    # data =
+    #   if Map.has_key?(data, "start") do
+    #     data
+    #   else
+    #     Map.put(data, "start", DateTime.utc_now() |> DateTime.add(60 * 60 * 24 * 7, :second))
+    #   end
+
+    IO.inspect(params)
+
+    question =
+      data["question"]
+      |> Enum.map(fn qid ->
+        IO.inspect(qid)
+        encode_str(qid)
+      end)
+
+    IO.inspect(">>>>>>>>>>>")
+    IO.inspect(question)
+
+    is_admin = data["is_admin"]
+
     id_user = conn.assigns.user.user_id
 
-    user = Repo.get(User, id_user)
-    IO.inspect(user.role)
+    # user = Repo.get(User, id_user)
+    # IO.inspect(user.role)
+    # json(conn, %{})
+    result =
+      if is_admin do
+        check = ExamWeb.UserController.check_is_admin(params["access_token"])
+
+        if check.success do
+          Exam.changeset(
+            %Exam{},
+            Map.merge(data, %{
+              "user_id" => id_user,
+              "publish" => true,
+              "type_exam" => "exam",
+              "question" => question
+            })
+          )
+        else
+          json(conn, %{success: false, message: "not admin"})
+        end
+      else
+        Exam.changeset(
+          %Exam{},
+          Map.merge(data, %{
+            "user_id" => id_user,
+            "type_exam" => "custom_exam",
+            "question" => question
+          })
+        )
+      end
+      |> Repo.insert()
+
+    IO.inspect(result)
 
     # roll == admiin => exam must be published and type's exam is exam
     # if roll != admin => type's exam is custom exam and
-
-    result =
-      case user.role do
-        "admin" ->
-          Exam.changeset(
-            %Exam{},
-            Map.merge(data, %{"user_id" => id_user, "publish" => true, "type_exam" => "exam"})
-          )
-
-        _ ->
-          Exam.changeset(
-            %Exam{},
-            Map.merge(data, %{"user_id" => id_user, "type_exam" => "custom_exam"})
-          )
-      end
-      |> Repo.insert()
 
     case result do
       {:ok, d} ->
@@ -96,34 +146,39 @@ defmodule ExamWeb.ExamController do
           j
           |> Poison.decode!()
 
-        listU =
-          j["list_user_do"]
-          |> Enum.map(fn x ->
-            GenServer.cast(
-              ExamWeb.Notification,
-              {:create_notification_exam,
-               %{
-                 "from" => %{"source" => "De thi #{j["id"]}", "exam" => j["id"]},
-                 "to" => x,
-                 "media" => %{},
-                 "data" => %{"message" => "Ban duoc moi tham gia lam bai thi"},
-                 "actions" => %{"url" => "/exam/#{j["id"]}/intro"},
-                 "setting" => %{}
-               }}
-            )
-          end)
+        # only send exam is custom_exam
+        if !is_admin do
+          listU =
+            j["list_user_do"]
+            |> Enum.map(fn x ->
+              GenServer.cast(
+                ExamWeb.Notification,
+                {:create_notification_exam,
+                 %{
+                   "from" => %{"source" => "De thi #{j["id"]}", "exam" => j["id"]},
+                   "to" => x,
+                   "media" => %{},
+                   "data" => %{"message" => "Bạn được mời làm bài thi"},
+                   "actions" => %{"url" => "/exam/#{j["id"]}/intro"},
+                   "setting" => %{}
+                 }}
+              )
+            end)
 
-        send_noti(j["list_user_do"] || [], j)
+          send_noti(j["list_user_do"] || [], j)
+        end
+
         json(conn, %{data: j, success: true})
 
       # send Notification to User who can do
 
       {:error, c} ->
         IO.inspect(c)
-        json(conn, %{data: %{}, success: false, message: "Kieem tra lai thong tin"})
+        json(conn, %{data: %{}, success: false, message: "Kiểm tra lại thông tin"})
     end
   end
 
+  @spec send_noti(any, any) :: [any]
   def send_noti(listU, exam) do
     listU
     |> Enum.map(fn x ->
@@ -131,10 +186,10 @@ defmodule ExamWeb.ExamController do
         ExamWeb.Notification,
         {:create_notification_exam,
          %{
-           "from" => %{"source" => "De thi #{exam["id"]}", "exam" => exam["id"]},
+           "from" => %{"source" => "Đề thi #{exam["id"]}", "exam" => exam["id"]},
            "to" => x,
            "media" => %{},
-           "data" => %{"message" => "Ban duoc moi tham gia lam bai thi"},
+           "data" => %{"message" => "Bạn được mời tham gia bài thi."},
            "actions" => [],
            "setting" => %{}
          }}
@@ -157,22 +212,22 @@ defmodule ExamWeb.ExamController do
       false ->
         result =
           Enum.reduce(data.data.question, [], fn d, acc ->
-            if d.correct_ans == client_ans["#{d.id}"] do
+            if d.correct_ans == client_ans["#{d["id"]}"] do
               acc ++
                 [
                   %{
-                    id: d.id,
+                    id: d["id"],
                     result: true,
-                    your_ans: client_ans["#{d.id}"]
+                    your_ans: client_ans["#{d["id"]}"]
                   }
                 ]
             else
               acc ++
                 [
                   %{
-                    id: d.id,
+                    id: d["id"],
                     result: false,
-                    your_ans: client_ans["#{d.id}"]
+                    your_ans: client_ans["#{d["id"]}"]
                   }
                 ]
             end
@@ -185,7 +240,7 @@ defmodule ExamWeb.ExamController do
         setting = current_result.setting
 
         has_protect_mark =
-          if data.type_exam == "custom_exam" do
+          if data.data.type_exam == "custom_exam" do
             true
           else
             if Map.has_key?(setting, "protect_mark") do
@@ -194,6 +249,8 @@ defmodule ExamWeb.ExamController do
               false
             end
           end
+
+        IO.inspect(has_protect_mark)
 
         changeset =
           Result.changeset(current_result, %{
@@ -249,11 +306,21 @@ defmodule ExamWeb.ExamController do
   def update_exam(conn, p) do
     id_user = conn.assigns.user.user_id
     id_e = p["data"]["id"] || 0
-    IO.inspect(id_e)
+
+    question =
+      p["data"]["question"]
+      |> Enum.map(fn qid ->
+        encode_str("#{qid}")
+      end)
+
+    IO.inspect(question)
+
+    now = DateTime.utc_now()
+    add1day = now |> DateTime.add(60 * 60 * 24, :second)
 
     e =
       from(e in Exam,
-        where: e.id == ^id_e and e.user_id == ^id_user and e.type_exam == "custom_exam"
+        where: e.id == ^id_e and e.user_id == ^id_user and e.start > ^add1day
       )
       |> Repo.one()
 
@@ -261,11 +328,18 @@ defmodule ExamWeb.ExamController do
 
     case e do
       nil ->
-        json(conn, %{data: %{}, message: "Not found exam", success: false})
+        json(conn, %{
+          data: %{},
+          message: "Không tìm thấy bài thi hoặc bài thi đã diễn ra",
+          success: false
+        })
 
       _ ->
         result =
-          Exam.changeset(e, Map.merge(p["data"], %{"type_exam" => "custom_exam"}))
+          Exam.changeset(
+            e,
+            Map.merge(p["data"], %{"type_exam" => e.type_exam, "question" => question})
+          )
           |> Repo.update()
 
         case result do
@@ -332,7 +406,7 @@ defmodule ExamWeb.ExamController do
       json(conn, %{
         data: %{},
         success: false,
-        message: "Yo dont have enough permission to do this action"
+        message: "Không đủe quyền đề thực hiện hành động này"
       })
     end
   end
@@ -355,6 +429,7 @@ defmodule ExamWeb.ExamController do
   #   IO.inspect(exam)
   # end
 
+  @spec get_intro(Plug.Conn.t(), nil | keyword | map) :: Plug.Conn.t()
   def get_intro(conn, parmas) do
     id_exam = parmas["id_exam"]
 
@@ -362,7 +437,7 @@ defmodule ExamWeb.ExamController do
 
     exam =
       from(e in Exam,
-        where: e.id == ^id_exam,
+        where: e.id == ^id_exam and e.status == "avai",
         select: %{
           id: e.id,
           class: e.class,
@@ -372,14 +447,15 @@ defmodule ExamWeb.ExamController do
           question: e.question,
           list_user_do: e.list_user_do,
           number_students: e.number_students,
-          publish: e.publish
+          publish: e.publish,
+          status: e.status
         }
       )
       |> Repo.one()
 
     case exam do
       nil ->
-        json(conn, %{success: false, data: %{}})
+        json(conn, %{success: false, data: %{}, message: "Đề thi không sẵn có"})
 
       e ->
         data =
@@ -392,7 +468,7 @@ defmodule ExamWeb.ExamController do
           if id_user in data.list_user_do do
             json(conn, %{success: true, data: data})
           else
-            json(conn, %{success: false, data: %{}, status: "You cant do this exam"})
+            json(conn, %{success: false, data: %{}, message: "Bạn không thể làm bài thi này"})
           end
         end
     end
@@ -401,7 +477,7 @@ defmodule ExamWeb.ExamController do
   def get_exam(id_exam, type_get, id_user) do
     exam_query =
       from(e in Exam,
-        where: e.id == ^id_exam,
+        where: e.id == ^id_exam and e.status == "avai",
         select: %{
           id: e.id,
           class: e.class,
@@ -420,7 +496,12 @@ defmodule ExamWeb.ExamController do
 
     case exam_query do
       nil ->
-        %{data: %{}, status: "ID exam is incorrect", error: true, success: false}
+        %{
+          data: %{},
+          status: "ID exam is incorrect or exam is unavailabel",
+          error: true,
+          success: false
+        }
 
       _ ->
         data_exam =
@@ -433,13 +514,20 @@ defmodule ExamWeb.ExamController do
             :question,
             :list_user_do,
             :number_students,
-            :publish
+            :publish,
+            :type_exam
           ])
+
+        id_q =
+          data_exam.question
+          |> Enum.map(fn t ->
+            decode(t)
+          end)
 
         question_data =
           question_query =
           from(q in Question,
-            where: q.id in ^data_exam.question,
+            where: q.id in ^id_q,
             select: %{
               parent_question: q.parent_question,
               id: q.id,
@@ -459,17 +547,18 @@ defmodule ExamWeb.ExamController do
           end
 
         question_data = Repo.all(question_query)
+        q_d = g(0, question_data, data_exam.question)
 
         data =
           Map.merge(data_exam, %{
-            question: question_data
+            question: q_d
           })
 
-        case data_exam.publish do
-          true ->
+        case data_exam.type_exam do
+          "exam" ->
             %{data: data, success: true}
 
-          false ->
+          "custom_exam" ->
             if id_user in data_exam.list_user_do do
               %{data: data, success: true}
             else
@@ -516,6 +605,7 @@ defmodule ExamWeb.ExamController do
     subject = p["subject"] || "all"
     afterE = p["after"] || nil
     id_user = conn.assigns.user.user_id
+    id = p["id"] || nil
 
     subject =
       if subject == "all" do
@@ -525,23 +615,35 @@ defmodule ExamWeb.ExamController do
       end
 
     exam =
-      case afterE do
+      case id do
         nil ->
-          from(e in Exam,
-            where:
-              e.subject in ^subject and e.type_exam == "custom_exam" and e.user_id == ^id_user,
-            limit: 5,
-            order_by: [desc: :id],
-            select: e
-          )
+          case afterE do
+            nil ->
+              from(e in Exam,
+                where:
+                  e.subject in ^subject and e.type_exam == "custom_exam" and e.user_id == ^id_user,
+                limit: 5,
+                order_by: [desc: :id],
+                select: e
+              )
+
+            _ ->
+              from(e in Exam,
+                where:
+                  e.subject in ^subject and e.type_exam == "custom_exam" and e.user_id == ^id_user,
+                group_by: e.id,
+                having: e.id < ^afterE,
+                limit: 5,
+                order_by: [desc: :id],
+                select: e
+              )
+          end
 
         _ ->
           from(e in Exam,
-            where:
-              e.subject in ^subject and e.type_exam == "custom_exam" and e.user_id == ^id_user,
+            where: e.id == ^id and e.user_id == ^id_user,
             group_by: e.id,
-            having: e.id < ^afterE,
-            limit: 5,
+            limit: 1,
             order_by: [desc: :id],
             select: e
           )
@@ -579,7 +681,8 @@ defmodule ExamWeb.ExamController do
           :detail,
           :user_id,
           :inserted_at,
-          :setting
+          :setting,
+          :status
         ]
       )
       |> Repo.one()
@@ -588,12 +691,22 @@ defmodule ExamWeb.ExamController do
 
     case e do
       nil ->
-        json(conn, %{data: %{}, message: "Not found exam", success: false})
+        json(conn, %{data: %{}, message: "Không tìm thấy đề thi", success: false})
 
       _ ->
+        q_d =
+          e.question
+          |> Enum.map(fn v ->
+            if String.match?("#{v}", ~r/exam/) do
+              decode("#{v}")
+            else
+              v
+            end
+          end)
+
         q =
           from(q in Question,
-            where: q.id in ^(e.question || []),
+            where: q.id in ^q_d,
             select: %{
               id: q.id,
               as: q.as,
@@ -622,6 +735,117 @@ defmodule ExamWeb.ExamController do
           |> Poison.decode!()
 
         json(conn, %{data: e, success: true})
+    end
+  end
+
+  def my_exam_done(conn, p) do
+    id_user = conn.assigns.user.user_id
+    data = ExamWeb.ResultController.my_exam_done(id_user)
+    json(conn, data)
+  end
+
+  def encode_n(n) do
+    case n do
+      "0" -> "w"
+      "1" -> "a"
+      "2" -> "b"
+      "3" -> "c"
+      "4" -> "d"
+      "5" -> "e"
+      "6" -> "f"
+      "7" -> "g"
+      "8" -> "h"
+      "9" -> "i"
+      "j" -> "j"
+      "w" -> "0"
+      "a" -> "1"
+      "b" -> "2"
+      "c" -> "3"
+      "d" -> "4"
+      "e" -> "5"
+      "f" -> "6"
+      "g" -> "7"
+      "h" -> "8"
+      "i" -> "9"
+      "j" -> "j"
+    end
+  end
+
+  def encode_str(str) do
+    r =
+      String.split(str, "")
+      |> Enum.filter(fn x -> x != "" end)
+
+    r = ["j"] ++ r
+
+    data =
+      add(r)
+      |> Enum.map(fn s -> encode_n(s) end)
+      |> Enum.join("")
+
+    "exam_#{data}"
+  end
+
+  def add(str) do
+    if Enum.count(str) == 10 do
+      str
+    else
+      add(["#{Enum.random(0..9)}"] ++ str)
+    end
+  end
+
+  def decode(str) do
+    r =
+      String.split(str, "j")
+      |> Enum.at(1)
+      |> String.split("")
+      |> Enum.filter(fn x -> x != "" end)
+      |> Enum.map(fn h -> encode_n(h) end)
+      |> Enum.join("")
+
+    r
+  end
+
+  @spec g(integer, any, any) :: [map, ...]
+  # merger id to question
+  def g(i, s1, s2) do
+    if i == Enum.count(s1) - 1 do
+      [Map.merge(Enum.at(s1, i), %{"id" => Enum.at(s2, i)})]
+    else
+      [Map.merge(Enum.at(s1, i), %{"id" => Enum.at(s2, i)})] ++ g(i + 1, s1, s2)
+    end
+  end
+
+  def get_list_by_admin(conn, p) do
+    sub =
+      if p["subject"] do
+        [p["subject"]]
+      else
+        ["T", "L", "H"]
+      end
+
+    u = ExamWeb.UserController.check_is_admin(p["access_token"])
+
+    if u.success do
+      e =
+        from(e in Exam,
+          where: e.type_exam == "exam" and e.subject in ^sub,
+          limit: 30,
+          select: %{
+            user_id: e.user_id,
+            class: e.class,
+            subject: e.subject,
+            numq: e.question,
+            time: e.time,
+            insert: e.inserted_at,
+            id: e.id
+          }
+        )
+        |> Repo.all()
+
+      json(conn, %{data: e, success: true})
+    else
+      json(conn, %{data: [], success: false, message: "Not admin"})
     end
   end
 end

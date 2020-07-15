@@ -22,7 +22,18 @@ defmodule ExamWeb.MarkSubject do
     json(conn, data)
   end
 
-  def create_mark_by_question(id_user, id_question, result,source \\ "question", id_result \\nil) do
+  @spec create_mark_by_question(any, any, any, any, any) :: %{
+          :data => %{},
+          :success => boolean | <<_::40>>,
+          optional(:message) => <<_::136>>
+        }
+  def create_mark_by_question(
+        id_user,
+        id_question,
+        result,
+        source \\ "question",
+        id_result \\ nil
+      ) do
     q =
       from(q in Question,
         where: q.id == ^id_question,
@@ -56,7 +67,7 @@ defmodule ExamWeb.MarkSubject do
           )
           |> Repo.one()
 
-                  IO.inspect(mark)
+        IO.inspect(mark)
 
         case mark do
           nil ->
@@ -173,53 +184,57 @@ defmodule ExamWeb.MarkSubject do
       )
       |> Repo.one()
 
-    IO.inspect(mark)
+    # IO.inspect(mark)
+    mark =
+      case mark do
+        nil ->
+          %{
+            number: 0,
+            number_correct: 0,
+            mark: 0
+          }
 
-    case mark do
-      nil ->
+        _ ->
+          mark
+          # count numbercorrect
+      end
+
+    total_num = Enum.count(result) || 0
+
+    total_num_correct =
+      Enum.count(
+        result
+        |> Enum.filter(fn x ->
+          x.result
+        end)
+      )
+
+    new_total_num = (mark.number || 0) + total_num
+    new_correct_num = (mark.number_correct || 0) + total_num_correct
+
+    new_mark = (mark.mark * mark.number + coefficient * 10 * total_num_correct) / new_total_num
+
+    changeset =
+      MarkSubject.changeset(%MarkSubject{}, %{
+        "mark" => new_mark,
+        "number" => new_total_num,
+        "number_correct" => new_correct_num,
+        "current_data" => %{"id_result" => id_ref},
+        "subject" => subject,
+        "class" => "12",
+        "user_id" => id_user,
+        "id_ref" => "#{id_exam}",
+        "source" => "exam"
+      })
+      |> Repo.insert()
+
+    case changeset do
+      {:ok, s} ->
+        %{data: %{}, success: true}
+
+      {:error, c} ->
+        IO.inspect(c)
         %{data: %{}, success: false}
-
-      _ ->
-        # count numbercorrect
-
-        total_num = Enum.count(result)
-
-        total_num_correct =
-          Enum.count(
-            result
-            |> Enum.filter(fn x ->
-              x.result
-            end)
-          )
-
-        new_total_num = mark.number + total_num
-        new_correct_num = mark.number_correct + total_num_correct
-
-        new_mark =
-          (mark.mark * mark.number + coefficient * 10 * total_num_correct) / new_total_num
-
-        changeset =
-          MarkSubject.changeset(%MarkSubject{}, %{
-            "mark" => new_mark,
-            "number" => new_total_num,
-            "number_correct" => new_correct_num,
-            "current_data" => %{"id_result" => id_ref},
-            "subject" => subject,
-            "class" => "12",
-            "user_id" => id_user,
-            "id_ref" => "#{id_exam}",
-            "source" => "exam"
-          })
-          |> Repo.insert()
-
-        case changeset do
-          {:ok, s} ->
-            %{data: %{}, success: true}
-
-          {:error, c} ->
-            IO.inspect(c)
-            %{data: %{}, success: false}
-        end
     end
   end
 
@@ -260,10 +275,12 @@ defmodule ExamWeb.MarkSubject do
     end
   end
 
-  def get_data_mark_all(id_user, subject, class) do
+  def get_data_mark_all(id_user, subject, class, s, e) do
     mark =
       from(m in MarkSubject,
-        where: m.user_id == ^id_user and m.subject == ^subject and m.class == ^class,
+        where:
+          m.user_id == ^id_user and m.subject == ^subject and m.class == ^class and
+            m.inserted_at < ^e and m.inserted_at > ^s,
         order_by: [desc: :id],
         select: %{
           mark: m.mark,
@@ -275,8 +292,6 @@ defmodule ExamWeb.MarkSubject do
       )
       |> Repo.all()
 
-    IO.inspect(mark)
-
     case mark do
       nil -> %{data: %{}, status: false, message: "No data"}
       _ -> %{data: mark, success: true}
@@ -286,8 +301,30 @@ defmodule ExamWeb.MarkSubject do
   def get_mark_subject(conn, params) do
     id_user = conn.assigns.user.user_id
     subject = params["subject"]
+    s = params["start"]
+    e = params["end"]
 
-    data = get_data_mark_all(id_user, subject, "12")
+    data = get_data_mark_all(id_user, subject, "12", s, e)
     json(conn, data)
+  end
+
+  def get_statistic_by_admin(conn, p) do
+    token = p["access_token"]
+    is_admin = ExamWeb.UserController.check_is_admin(token)
+
+    if is_admin.success do
+      id_u = p["id"]
+
+      t = get_data_mark(id_u, "12", "T")
+      l = get_data_mark(id_u, "12", "L")
+      h = get_data_mark(id_u, "12", "H")
+
+      json(conn, %{
+        data: %{t: t, l: l, h: h},
+        success: true
+      })
+    else
+      json(conn, %{data: %{}, success: false, message: "Not admin"})
+    end
   end
 end

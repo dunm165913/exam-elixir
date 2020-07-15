@@ -3,7 +3,7 @@ defmodule ExamWeb.ResultController do
 
   import Ecto.Query, only: [from: 2]
   plug(Exam.Plugs.Auth)
-  alias Exam.{User, Result}
+  alias Exam.{User, Result, Exam}
 
   def get_result(conn, params) do
     id_user = conn.assigns.user.user_id
@@ -39,7 +39,7 @@ defmodule ExamWeb.ResultController do
     # count n-th do exam
 
     count = Enum.count(re)
-    IO.inspect(count)
+
     # filter the exam inprocess
     r =
       re
@@ -80,7 +80,7 @@ defmodule ExamWeb.ResultController do
         end
 
       _ ->
-        IO.inspect(r)
+        # IO.inspect(r)
 
         da_result =
           r
@@ -210,24 +210,34 @@ defmodule ExamWeb.ResultController do
   end
 
   def auto_check(id_ref) do
-    result = Repo.get!(Result, id_ref)
+    # only result with status inprocess
+    result =
+      from(r in Result, where: r.id == ^id_ref and r.status == "in_process")
+      |> Repo.one()
 
-    client_ans =
-      Enum.reduce(result.result, %{}, fn d, acc ->
-        acc =
-          acc
-          |> Map.put(d["id"], d["your_ans"])
-      end)
+    case result do
+      nil ->
+        nil
 
-    id_exam = result.id_ref
-    id_user = result.user_id
+      _ ->
+        client_ans =
+          Enum.reduce(result.result, %{}, fn d, acc ->
+            acc =
+              acc
+              |> Map.put(d["id"], d["your_ans"])
+          end)
 
-    data = ExamWeb.ExamController.check_result_data(client_ans, id_exam, id_user, id_ref, "exam")
+        id_exam = result.id_ref
+        id_user = result.user_id
 
-    ExamWeb.Endpoint.broadcast!("exam:#{id_exam}", "get_result", %{
-      data: data,
-      success: true
-    })
+        data =
+          ExamWeb.ExamController.check_result_data(client_ans, id_exam, id_user, id_ref, "exam")
+
+        ExamWeb.Endpoint.broadcast!("exam:#{id_exam}", "get_result", %{
+          data: data,
+          success: true
+        })
+    end
   end
 
   # def create(conn, parmas)do
@@ -344,7 +354,42 @@ defmodule ExamWeb.ResultController do
     data = %{data: r, success: true}
   end
 
-  def my_exam_done(conn, p) do
-    id_user = conn.assigns.user.user_id
+  def my_exam_done(id_u) do
+    r =
+      from(r in Result,
+        join: e in Exam,
+        on: r.id_ref == e.id,
+        where: r.source == "exam" and r.user_id == ^id_u and r.status == "done",
+        order_by: r.id,
+        select: %{
+          id: r.id,
+          id_exam: r.id_ref,
+          subject: e.subject,
+          class: e.class,
+          inserted_at: r.inserted_at,
+          type_exam: e.type_exam,
+          status: r.status
+        }
+      )
+      |> Repo.all()
+
+    IO.inspect(r)
+    %{data: r, success: true}
+  end
+
+  def get_submit_question(id_q) do
+    q =
+      from(q in Result,
+        where: q.id_ref == ^id_q and q.source == "review_question",
+        select: %{
+          result: q.result,
+          user: q.user_id,
+          id: q.id,
+          status: q.status
+        }
+      )
+      |> Repo.all()
+
+    q
   end
 end

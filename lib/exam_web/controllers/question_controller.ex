@@ -49,6 +49,7 @@ defmodule ExamWeb.QuestionController do
     clas = parmas["clas"] || "all"
     level = parmas["level"] || "all"
     subject = parmas["subject"] || "all"
+    id = parmas["id"] || nil
 
     clas =
       if clas == "all" do
@@ -72,11 +73,17 @@ defmodule ExamWeb.QuestionController do
       end
 
     q =
-      from(q in Question,
-        where: q.class in ^clas and q.subject in ^subject and q.level in ^level,
-        order_by: fragment("RANDOM()"),
-        limit: 1
-      )
+      case id do
+        nil ->
+          from(q in Question,
+            where: q.class in ^clas and q.subject in ^subject and q.level in ^level,
+            order_by: fragment("RANDOM()"),
+            limit: 1
+          )
+
+        _ ->
+          from(q in Question, where: q.id == ^id, limit: 1)
+      end
       |> Repo.one()
 
     IO.inspect(q)
@@ -313,7 +320,7 @@ defmodule ExamWeb.QuestionController do
   end
 
   def get_new(conn, params) do
-    clas = params["clas"] || "12"
+    clas = params["clas"] || ["10", "11", "12"]
     level = params["level"] || "1"
     subject = params["subject"] || "T"
     id_user = conn.assigns.user.user_id
@@ -329,7 +336,7 @@ defmodule ExamWeb.QuestionController do
     status = params["status"] || "all"
     # check user has condition get current mark_sub
 
-    m = ExamWeb.MarkSubject.get_data_mark(id_user, clas, subject)
+    m = ExamWeb.MarkSubject.get_data_mark(id_user, "12", subject)
 
     u = m.data
 
@@ -341,9 +348,9 @@ defmodule ExamWeb.QuestionController do
               left_join: r in Result,
               on: r.id_ref == q.id and r.user_id == ^id_user and r.source == "review_question",
               where:
-                q.class == ^clas and q.subject == ^subject and
+                q.class in ^clas and q.subject == ^subject and
                   q.status == "inreview" and q.level in ^level,
-              limit: 10,
+              limit: 100,
               select: %{
                 question: q.question,
                 url_media: q.url_media,
@@ -365,8 +372,8 @@ defmodule ExamWeb.QuestionController do
               join: r in Result,
               on: r.id_ref == q.id and r.user_id == ^id_user and r.source == "review_question",
               where:
-                q.class == ^clas and q.subject == ^subject and
-                  q.status == "inreview" and q.level in ^level,
+                q.class in ^clas and q.subject == ^subject and
+                  q.status == "done" and q.level in ^level,
               limit: 10,
               select: %{
                 question: q.question,
@@ -397,7 +404,7 @@ defmodule ExamWeb.QuestionController do
             q =
               from(q in Question,
                 where:
-                  q.class == ^clas and q.subject == ^subject and
+                  q.class in ^clas and q.subject == ^subject and
                     q.status == "inreview" and q.level in ^level and not (q.id in ^subset),
                 limit: 10,
                 select: %{
@@ -413,10 +420,9 @@ defmodule ExamWeb.QuestionController do
               |> Repo.all()
         end
 
-      IO.inspect(q)
       json(conn, %{success: true, data: q})
     else
-      json(conn, %{data: u, success: false, message: "Not enought mark"})
+      json(conn, %{data: u, success: false, message: "Không đủ điểm"})
     end
   end
 
@@ -618,7 +624,50 @@ defmodule ExamWeb.QuestionController do
     afterQ = parmas["after"] || nil
     from = parmas["from"] || "all"
     status = parmas["status"] || "done"
-    data = get_q(class, subject, level, afterQ, from, id_user, status)
+    id = parmas["id"] || nil
+    my_q = parmas["my_question"] || "false"
+
+    data =
+      case id do
+        nil ->
+          get_q(class, subject, level, afterQ, from, id_user, status)
+
+        _ ->
+          case my_q do
+            "false" ->
+              from(q in Question,
+                where: q.id == ^id and q.status == "done",
+                select: q
+              )
+              |> Repo.all()
+              |> Enum.map(fn d ->
+                {:ok, f} =
+                  d
+                  |> Map.drop([:__meta__])
+                  |> Poison.encode()
+
+                f
+                |> Poison.decode!()
+                |> Map.merge(%{correct_ans: nil})
+              end)
+
+            _ ->
+              from(q in Question,
+                where: q.id == ^id and q.user_id == ^id_user,
+                select: q
+              )
+              |> Repo.all()
+              |> Enum.map(fn d ->
+                {:ok, f} =
+                  d
+                  |> Map.drop([:__meta__])
+                  |> Poison.encode()
+
+                f
+                |> Poison.decode!()
+              end)
+          end
+      end
 
     json(conn, %{data: data, success: true})
   end
@@ -650,14 +699,14 @@ defmodule ExamWeb.QuestionController do
           json(conn, %{
             data: %{},
             success: false,
-            message: "Cant update question which has status is done"
+            message: "Không thể cập nhật câu hỏi khi đã publish"
           })
 
         "inreview" ->
           json(conn, %{
             data: %{},
             success: false,
-            message: "Cant update question which has status is inreview"
+            message: "Không thể cập nhật câu hỏi khi đang review"
           })
 
         "review" ->
@@ -671,7 +720,7 @@ defmodule ExamWeb.QuestionController do
 
             {:error, g} ->
               IO.inspect(g)
-              json(conn, %{data: %{}, success: false, message: "Update faile"})
+              json(conn, %{data: %{}, success: false, message: "Cập nhật thất bại"})
           end
       end
     else
@@ -703,11 +752,304 @@ defmodule ExamWeb.QuestionController do
 
             {:error, g} ->
               IO.inspect(g)
-              json(conn, %{data: %{}, success: false, message: "Update faile"})
+              json(conn, %{data: %{}, success: false, message: "Cập nhật thất bại"})
           end
       end
     else
       json(conn, %{data: %{}, success: false, message: "Not admin"})
     end
+  end
+
+  def get_list_by_admin(conn, p) do
+    id_user = p["id_user"] || nil
+    class = p["clas"] || "all"
+    subject = p["subject"] || "all"
+    level = p["level"] || "all"
+    afterQ = p["after"] || nil
+    from = p["from"] || "all"
+    status = p["status"] || "done"
+    id = p["id"] || nil
+    my_q = p["my_question"] || "false"
+
+    is_admin = ExamWeb.UserController.check_is_admin(p["access_token"] || "")
+
+    IO.inspect(is_admin)
+
+    if is_admin.success do
+      data =
+        if id == nil do
+          get_q(class, subject, level, afterQ, from, id_user, status)
+        else
+          question = Repo.get(Question, id)
+
+          data =
+            question
+            |> Map.drop([:__meta__])
+            |> Poison.encode()
+
+          case data do
+            {:ok, q} ->
+              da =
+                q
+                |> Poison.decode!()
+
+              [da]
+
+            _ ->
+              []
+          end
+        end
+
+      json(conn, %{data: data, success: true})
+    else
+      json(conn, %{data: %{}, success: false, message: "Not admin"})
+    end
+  end
+
+  def get_submit_question_by_admin(conn, p) do
+    is_admin = ExamWeb.UserController.check_is_admin(p["access_token"] || "")
+
+    if is_admin.success do
+      id_q = p["id"]
+      data = ExamWeb.ResultController.get_submit_question(id_q)
+
+      json(conn, %{data: data, success: true})
+    else
+      json(conn, %{data: %{}, success: false, message: "Not admin"})
+    end
+  end
+
+  def admin_update(conn, p) do
+    id = p["id"]
+    status = p["status"] || "done"
+
+    # get _q
+    is_admin = ExamWeb.UserController.check_is_admin(p["access_token"])
+
+    if is_admin.success do
+      q =
+        from(q in Question, where: q.id == ^id and q.status == "review", limit: 1)
+        |> Repo.one()
+
+      case q.status do
+        "review" ->
+          changeset =
+            Question.changeset(q, %{
+              "status" => "inreview"
+            })
+            |> Repo.update()
+
+          case changeset do
+            {:ok, f} ->
+              IO.inspect(f)
+              # send notification to user who is owner question
+              GenServer.cast(
+                ExamWeb.Notification,
+                {:change_status_question,
+                 %{
+                   "actions" => [],
+                   "setting" => %{},
+                   "to" => q.user_id,
+                   "media" => %{},
+                   "data" => %{"message" => "Câu hỏi #{id} đang đươc review"},
+                   "from" => %{"source" => "Hệ thống  Exam", "question" => id}
+                 }}
+              )
+
+              json(conn, %{data: %{}, success: true})
+
+            {:error, g} ->
+              IO.inspect(g)
+              json(conn, %{data: %{}, message: "Check your info", success: false})
+          end
+
+        "inreview" ->
+          # update question to system
+          json(conn, %{
+            data: %{},
+            message: "Hệ thống đang thử nghiêm tính năng này",
+            success: false
+          })
+
+        _ ->
+          json(conn, %{data: %{}, success: false, message: "Trạng thái câu hỏi không hợp lệ "})
+      end
+    else
+      json(conn, %{data: %{}, success: false, message: "Not admin"})
+    end
+  end
+
+  def admin_eject(conn, p) do
+    id = p["id"]
+    reson = p["message"]
+
+    is_admin = ExamWeb.UserController.check_is_admin(p["access_token"])
+
+    if is_admin.success do
+      q =
+        from(q in Question, where: q.id == ^id and q.status in ["review", "inreview"], limit: 1)
+        |> Repo.one()
+
+      case q do
+        nil ->
+          json(conn, %{success: false, message: "Not found question"})
+
+        _ ->
+          changeset =
+            Question.changeset(q, %{
+              "result_review" =>
+                (q.result_review || []) ++
+                  [
+                    %{
+                      success: false,
+                      message: reson
+                    }
+                  ],
+              "status" => "review"
+            })
+            |> Repo.update()
+
+          case changeset do
+            {:ok, f} ->
+              IO.inspect(f)
+              # send notification to user who is owner question
+              GenServer.cast(
+                ExamWeb.Notification,
+                {:change_status_question,
+                 %{
+                   "actions" => [],
+                   "setting" => %{},
+                   "to" => q.user_id,
+                   "media" => %{},
+                   "data" => %{"message" => "Câu hỏi #{id} bị từ chối vì:  #{reson}"},
+                   "from" => %{"source" => "Hệ thống Exam", "question" => id}
+                 }}
+              )
+
+              json(conn, %{data: %{}, success: true})
+
+            {:error, g} ->
+              IO.inspect(g)
+              json(conn, %{data: %{}, message: "Check your info", success: false})
+          end
+      end
+    else
+      json(conn, %{data: %{}, success: false, message: "Not admin"})
+    end
+  end
+
+  def submit_by_admin(conn, p) do
+    id = p["id"]
+    reson = p["message"]
+
+    is_admin = ExamWeb.UserController.check_is_admin(p["access_token"])
+
+    if is_admin.success do
+      q =
+        from(q in Question, where: q.id == ^id and q.status == "inreview", limit: 1)
+        |> Repo.one()
+
+      case q do
+        nil ->
+          json(conn, %{success: false, message: "Not found"})
+
+        _ ->
+          changeset =
+            Question.changeset(q, %{
+              "status" => "done"
+            })
+            |> Repo.update()
+
+          case changeset do
+            {:ok, f} ->
+              IO.inspect(f)
+              # send notification to user who is owner question
+              GenServer.cast(
+                ExamWeb.Notification,
+                {:change_status_question,
+                 %{
+                   "actions" => [],
+                   "setting" => %{},
+                   "to" => q.user_id,
+                   "media" => %{},
+                   "data" => %{"message" => "Câu hỏi #{id} đã có mặt trên hệ thống"},
+                   "from" => %{"source" => "Hệ thống Exam", "question" => id}
+                 }}
+              )
+
+              # caculator all submitions of question
+              GenServer.cast(
+                ExamWeb.Process,
+                {:caculator_mark_after_submit_question, %{"id" => id}}
+              )
+
+              json(conn, %{data: %{}, success: true})
+
+            {:error, g} ->
+              IO.inspect(g)
+              json(conn, %{data: %{}, message: "Check your info", success: false})
+          end
+      end
+    else
+      json(conn, %{data: %{}, success: false, message: "Not admin"})
+    end
+  end
+
+  def caculator_mark_after_submit_question(p) do
+    id = p["id"]
+
+    q = Repo.get(Question, id)
+
+    {:ok, d} =
+      q
+      |> Map.drop([:__meta__])
+      |> Poison.encode()
+
+    data_q =
+      d
+      |> Poison.decode!()
+
+    IO.inspect(data_q)
+
+    all_result =
+      from(r in Result, where: r.id_ref == ^id and r.source == "review_question")
+      |> Repo.all()
+      |> Enum.map(fn re ->
+        result_current = Enum.at(re.result, 0)
+        your_ans = result_current["your_ans"]
+
+        if your_ans == data_q["correct_ans"] do
+          changeset =
+            Result.changeset(re, %{
+              "result" => [Map.merge(result_current, %{"result" => true})],
+              "status" => "done"
+            })
+            |> Repo.update()
+
+          ExamWeb.MarkSubject.create_mark_by_question(
+            re.user_id,
+            id,
+            true,
+            "review_question",
+            re.id
+          )
+
+          # caculator mark_subject
+        else
+          changeset =
+            Result.changeset(re, %{
+              "result" => [Map.merge(result_current["your_ans"], %{"result" => false})]
+            })
+            |> Repo.update()
+
+          # ExamWeb.MarkSubject.create_mark_by_question(
+          #   re.user_id,
+          #   id,
+          #   false,
+          #   "review_question",
+          #   re.id
+          # )
+        end
+      end)
   end
 end

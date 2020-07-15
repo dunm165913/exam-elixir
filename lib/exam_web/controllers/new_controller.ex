@@ -19,7 +19,8 @@ defmodule ExamWeb.NewController do
           id_ref: n.id_ref,
           setting: n.setting,
           source: n.source,
-          title: n.title
+          title: n.title,
+          id: n.id
         }
       )
       |> Repo.all()
@@ -59,11 +60,13 @@ defmodule ExamWeb.NewController do
 
     if is_admin.success do
       n = Repo.get(New, id)
-      data  = data
-      |> Map.merge(%{
-        "data" => data["data"]["data"],
-        "title" => data["data"]["title"]
-      })
+
+      data =
+        data
+        |> Map.merge(%{
+          "data" => data["data"]["data"],
+          "title" => data["data"]["title"]
+        })
 
       case n do
         nil ->
@@ -80,6 +83,7 @@ defmodule ExamWeb.NewController do
 
             {:error, e} ->
               IO.inspect(e)
+
               json(conn, %{
                 data: %{},
                 message: "loi khi cap nhat du lieu, vui long kiem tra lai",
@@ -90,6 +94,7 @@ defmodule ExamWeb.NewController do
     else
       json(conn, %{data: %{}, message: "Cant do actions", success: false})
     end
+
     # json(conn, %{})
   end
 
@@ -111,6 +116,27 @@ defmodule ExamWeb.NewController do
           |> Poison.decode!()
 
         json(conn, %{data: r, success: true})
+    end
+  end
+
+  def new_by_admin(conn, p) do
+    is_admin = ExamWeb.UserController.check_is_admin(p["access_token"])
+
+    if is_admin.success do
+      news =
+        from(n in New,
+          limit: 30,
+          select: %{
+            id: n.id,
+            # user_id: n.user_id, 
+            insert: n.inserted_at
+          }
+        )
+        |> Repo.all()
+
+      json(conn, %{data: news, success: true})
+    else
+      json(conn, %{data: [], succeess: false, message: "not admon"})
     end
   end
 end
