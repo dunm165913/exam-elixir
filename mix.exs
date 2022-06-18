@@ -35,15 +35,15 @@ defmodule Exam.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.4.10"},
-      {:phoenix_pubsub, "~> 1.1"},
-      {:phoenix_ecto, "~> 4.0"},
-      {:ecto_sql, "~> 3.1"},
+      {:phoenix, "~> 1.6.10"},
+      {:phoenix_pubsub, "~> 2.0.0"},
+      {:phoenix_ecto, "~> 4.4"},
+      {:ecto_sql, "~> 3.6"},
       {:postgrex, ">= 0.0.0"},
-      {:phoenix_html, "~> 2.11"},
+      {:phoenix_html, "~> 3.0"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:gettext, "~> 0.11"},
-      {:jason, "~> 1.0"},
+      {:gettext, "~> 0.18"},
+      {:jason, "~> 1.2"},
       {:plug_cowboy, "~> 2.0"},
       {:json_web_token, "~> 0.2.5"},
       {:bcrypt_elixir, "~> 2.0"},
@@ -52,6 +52,7 @@ defmodule Exam.MixProject do
       {:cors_plug, "~> 2.0"},
       {:httpoison, "~> 1.6", override: true},
       {:cloudex, "~> 1.3.0"},
+      {:plug_crypto, "~> 1.2"}
     ]
   end
 

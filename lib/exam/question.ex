@@ -16,7 +16,7 @@ defmodule Exam.Question do
     field :class, :string, default: "12"
     field :detail, :string, default: ""
     field :status, :string, default: "review"
-    field :mark, :float, default: "0.0"
+    field :mark, :float, default: 0.0
     # field :user_id, :integer
     belongs_to :user, User
 

@@ -1,5 +1,5 @@
 defmodule ExamWeb.UserController do
-  alias ExamWeb.{Tool}
+  alias ExamWeb.{Tool, JsonWebToken}
   use ExamWeb, :controller
   import Plug.Conn
   import Ecto.Query, only: [from: 2]

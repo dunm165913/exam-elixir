@@ -40,6 +40,7 @@ defmodule ExamWeb.Router do
       scope "/user" do
         get "/", UserController, :index
         post "/signup", UserController, :create
+        options "/signup", UserController, :option
         post "/login", UserController, :login
         options "/login", UserController, :option
         post "/login_email", UserController, :login_email
