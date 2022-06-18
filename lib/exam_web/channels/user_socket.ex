@@ -4,6 +4,8 @@ defmodule ExamWeb.UserSocket do
   ## Channels
   channel "exam:*", ExamWeb.ExamChannel
   channel "question:*", ExamWeb.QuestionChannel
+  channel "notification:*", ExamWeb.NotificationChannel
+  channel "message:*", ExamWeb.MessageChannel
   # chanel "exam", ExamWeb.ExamChanel
 
   # def handle_exam(:after_join, socket) do

@@ -15,7 +15,7 @@ config :exam, ExamWeb.Endpoint,
   url: [host: "localhost"],
   secret_key_base: "EHJUaEftiPO81s96IaYAM9Sk81YrbQ/vRAPZvx1nm+ZVXv/fBNNOY2sXWqshzX09",
   render_errors: [view: ExamWeb.ErrorView, accepts: ~w(html json)],
-  pubsub: [name: Exam.PubSub, adapter: Phoenix.PubSub.PG2]
+  pubsub: [name: ExamWeb.PubSub, adapter: Phoenix.PubSub.PG2]
 
 # Configures Elixir's Logger
 config :logger, :console,

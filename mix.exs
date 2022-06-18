@@ -24,7 +24,9 @@ defmodule Exam.MixProject do
     ]
   end
 
-  def application do [applications: [:logger, :cloudex]] end
+  def application do
+    [applications: [:logger, :cloudex, :otp_app]]
+  end
 
   # Specifies which paths to compile per environment.
   defp elixirc_paths(:test), do: ["lib", "test/support"]

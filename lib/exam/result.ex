@@ -7,7 +7,7 @@ defmodule Exam.Result do
     field :result, {:array, :map}
     field :source, :string
     field :setting, :map
-    field :id_ref, :string
+    field :id_ref, :integer
     # field :exam_id, :integer
     # field :user_id, :integer
     field :status, :string

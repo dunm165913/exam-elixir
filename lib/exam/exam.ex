@@ -12,39 +12,50 @@ defmodule Exam.Exam do
     field :start, :utc_datetime
     field :number_students, :integer
     field :publish, :boolean
-    field :list_user_do, {:array, :integer}
-    field :question, {:array, :integer}
+    field :list_user_do, {:array, :integer}, default: []
+    field :question, {:array, :string}
     field :detail, :string
+    field :setting, :map
+    field :type_exam, :string
+    field :status, :string
     belongs_to :user, User
-    has_many :question_data, :Question
 
     timestamps()
   end
 
+  @spec changeset(
+          {map, map} | %{:__struct__ => atom | %{__changeset__: map}, optional(atom) => any},
+          :invalid | %{optional(:__struct__) => none, optional(atom | binary) => any}
+        ) :: Ecto.Changeset.t()
   @doc false
-  def changeset(user, attrs) do
-    user
+  def changeset(e, attrs) do
+    e
     |> cast(attrs, [
       :subject,
       :class,
-      :time,
+      # :time,
       :start,
-      :number_students,
+      # :number_students,
       :publish,
       :question,
       :list_user_do,
-      :user_id
+      :user_id,
+      :setting,
+      :type_exam,
+      :status
     ])
     |> validate_required([
       :subject,
       :class,
-      :time,
+      # :time,
       :start,
-      :number_students,
+      # :number_students,
       :publish,
       :question,
       :list_user_do,
-      :user_id
+      :user_id,
+      :setting,
+      :type_exam
     ])
   end
 end

@@ -8,6 +8,8 @@ defmodule Exam.Application do
   def start(_type, _args) do
     # List all child processes to be supervised
     children = [
+      # Phoenix.PubSub,
+      # ExamWeb.UserPresence,
       # Start the Ecto repository
       Exam.Repo,
       # Start the endpoint when the application starts
@@ -15,7 +17,9 @@ defmodule Exam.Application do
       # Starts a worker by calling: Exam.Worker.start_link(arg)
       # {Exam.Worker, arg},
       {ExamWeb.Cache, []},
-      {ExamWeb.Process, []}
+      {ExamWeb.Process, []},
+      {ExamWeb.Notification, []},
+      {ExamWeb.Message, []}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

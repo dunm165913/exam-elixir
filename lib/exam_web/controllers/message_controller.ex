@@ -7,14 +7,14 @@ defmodule ExamWeb.MessageController do
   alias Exam.Message
   alias Exam.Exam
 
-  def create_message(source, message, user_id, name) do
+  def create_message(source, message, user_id, name, id_ref) do
     changeset =
       Message.changeset(%Message{}, %{
         "source" => source || "default",
         "message" => message || "",
         "user_id" => user_id,
         "setting" => %{},
-        "id_ref" => "null",
+        "id_ref" => id_ref,
         "user_info" => %{
           "id" => user_id,
           "name" => name
@@ -26,9 +26,10 @@ defmodule ExamWeb.MessageController do
 
     case result do
       {:ok, data} ->
-        %{data: %{}, success: true}
+        %{data: data, success: true}
 
-      _ ->
+      {:error, b} ->
+        IO.inspect(b)
         %{data: %{}, success: false}
     end
   end
@@ -68,6 +69,7 @@ defmodule ExamWeb.MessageController do
     id_exam = parmas["id_exam"]
     message = parmas["message"]
     id_user = conn.assigns.user.user_id
+    IO.inspect(conn.assigns.user)
 
     exam =
       from(e in Exam,
@@ -99,7 +101,11 @@ defmodule ExamWeb.MessageController do
               setting: %{},
               id_ref: id_exam,
               user_id: id_user,
-              source: "exam_#{id_exam}"
+              source: "exam_#{id_exam}",
+              user_info: %{
+                id: id_user,
+                name: conn.assigns.user.name
+              }
             })
             |> Repo.insert()
 

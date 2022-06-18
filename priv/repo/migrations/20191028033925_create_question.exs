@@ -3,7 +3,7 @@ defmodule Exam.Repo.Migrations.CreateQuestion do
 
   def change do
       create table(:questions) do
-      add :as, {:array, :string}, default: []
+      add :as, {:array,"text"}, default: []
       add :correct_ans, :string
       add :question, :string
       add :parent_question, :string
@@ -15,6 +15,10 @@ defmodule Exam.Repo.Migrations.CreateQuestion do
       add :url_media, :string
       add :history, {:array, :map}
       add :user_id, references(:users)
+      add :status, :string
+
+      add :mark, :float
+
 
       timestamps()
     end

@@ -13,6 +13,15 @@ defmodule ExamWeb.ExamChannel do
     end
   end
 
+  def handle_in("do_exam", payload, socket) do
+    id_exam = payload["id_exam"]
+    id_user = payload["id_user"]
+    result = ExamWeb.ResultController.create_default(id_exam, id_user, "exam")
+    IO.inspect(result)
+    push(socket, "default_result", %{data: result})
+    {:noreply, socket}
+  end
+
   # Channels can be used in a request/response fashion
   # by sending replies to requests from the client
   def handle_in("ping", payload, socket) do
@@ -42,9 +51,7 @@ defmodule ExamWeb.ExamChannel do
   # Add authorization logic here as required.
   defp authorized?(payload) do
     # IO.inspect(payload)
-    Exam.get_exam(12, false, 1)
-
-    case Map.has_key?(payload, "access_token") && Map.has_key?(payload, "id_exam") do
+    case Map.has_key?(payload, "access_token") do
       true ->
         try do
           data_user =

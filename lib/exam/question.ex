@@ -17,15 +17,20 @@ defmodule Exam.Question do
     field :detail, :string, default: ""
     field :status, :string, default: "review"
     field :mark, :float, default: 0.0
+    field :result_review, {:array, :map}
     # field :user_id, :integer
     belongs_to :user, User
 
     timestamps()
   end
 
+  @spec changeset(
+          {map, map} | %{:__struct__ => atom | %{__changeset__: map}, optional(atom) => any},
+          :invalid | %{optional(:__struct__) => none, optional(atom | binary) => any}
+        ) :: Ecto.Changeset.t()
   @doc false
-  def changeset(user, attrs) do
-    user
+  def changeset(questions, attrs) do
+    questions
     |> cast(attrs, [
       :as,
       :correct_ans,
@@ -36,9 +41,11 @@ defmodule Exam.Question do
       :url_media,
       :level,
       :class,
-      :detail,
+      :user_id,
+      # :detail,
       :status,
-      :mark
+      # :mark
+      :result_review
     ])
     |> validate_required([
       :as,
@@ -47,12 +54,13 @@ defmodule Exam.Question do
       :parent_question,
       :type,
       :subject,
-      :url_media,
+      # :url_media,
       :level,
       :class,
-      :detail,
+      :user_id,
+      # :detail,
       :status,
-      :mark
+      # :mark
     ])
   end
 end
